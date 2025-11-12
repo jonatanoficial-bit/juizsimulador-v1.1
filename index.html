@@ -1,485 +1,59 @@
 <!doctype html>
 <html lang="pt-br">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Jogo do Juiz 2.0 — Vale Produção</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jogo do Juiz — Safe Mode</title>
 <style>
-  :root{
-    --bg:#0b0b0d; --panel:#141419; --muted:#8b90a0; --text:#f4f6fb;
-    --brand:#42e6a4; --accent:#6ab0ff; --danger:#ff5d7a; --warn:#ffc34d;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto}
-  body{background:var(--bg);color:var(--text)}
-  button,input,select{font:inherit}
-  .wrap{max-width:1120px;margin:0 auto;padding:20px}
-  .btn{border:0;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer;color:#fff;background:#ffffff22}
-  .btn:hover{background:#ffffff35}
-  .btn.ok{background:var(--brand);color:#032}
-  .btn.danger{background:var(--danger);color:#200}
-  .btn.warn{background:var(--warn);color:#332100}
-  .btn.ghost{background:#ffffff10}
-  .card{background:var(--panel);border:1px solid #ffffff18;border-radius:16px;padding:16px}
-  .grid{display:grid;gap:16px}
-  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .title{font-size:28px;font-weight:800;letter-spacing:-0.02em}
-  .muted{color:var(--muted)}
-  .pill{display:inline-block;background:#ffffff14;border:1px solid #ffffff22;border-radius:999px;padding:4px 10px;font-size:12px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .list{display:flex;flex-direction:column;gap:12px;max-height:420px;overflow:auto;padding-right:6px}
-  .progress{height:8px;background:#ffffff14;border-radius:999px;overflow:hidden}
-  .progress>span{display:block;height:100%;background:var(--accent)}
-  .avatar{width:56px;height:56px;border-radius:12px;overflow:hidden;border:2px solid #ffffff44;background:#ffffff18;display:grid;place-items:center}
-  .bg-hero{
-    background:
-      radial-gradient(1000px 500px at 50% -10%,#ffffff22,transparent),
-      linear-gradient(180deg,#0b0b0d 0%,#0b0b0d 20%,#0b0b0d 100%);
-    min-height:100vh;display:grid;place-items:center;text-align:center
-  }
-
-  /* Temas por tribunal (com fallback cor sólida) */
-  .theme-criminal{
-    background:
-      radial-gradient(1000px 500px at 50% 0%, rgba(0,0,0,.45), transparent),
-      url('https://images.unsplash.com/photo-1589994965851-a3d0ee3d5953?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat,
-      #0f0a06;
-    min-height:100vh;padding:20px 0;
-  }
-  .theme-familia{
-    background:
-      radial-gradient(1000px 500px at 50% 0%, rgba(0,0,0,.35), transparent),
-      url('https://images.unsplash.com/photo-1589829545856-d10d557cf95f?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat,
-      #101217;
-    min-height:100vh;padding:20px 0;
-  }
-  .theme-trabalhista{
-    background:
-      radial-gradient(1000px 500px at 50% 0%, rgba(0,0,0,.35), transparent),
-      url('https://images.unsplash.com/photo-1523246192111-864a292e0fcd?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat,
-      #1a1209;
-    min-height:100vh;padding:20px 0;
-  }
-
-  /* Avatar grande */
-  .avatar-lg{width:100%;max-width:240px;border-radius:14px;border:1px solid #ffffff33}
-
-  /* Responsivo */
-  @media (max-width:960px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  background:linear-gradient(180deg,#0b0b0d 0%,#141419 100%);
+  color:#f4f6fb;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  text-align:center;
+}
+h1{font-size:2em;margin-bottom:0.5em;}
+.card{
+  background:#141419;
+  padding:20px;
+  border-radius:14px;
+  border:1px solid #ffffff22;
+  max-width:600px;
+}
+.btn{margin-top:15px;padding:10px 20px;border-radius:10px;background:#42e6a4;border:0;font-weight:600;cursor:pointer;}
+.error{color:#ff5d7a;margin-top:10px;white-space:pre-wrap;font-size:14px;}
 </style>
 </head>
 <body>
-
-<div id="app"></div>
+<div class="card">
+  <h1>Jogo do Juiz 2.0</h1>
+  <p id="status">Carregando aplicação...</p>
+  <div class="error" id="err"></div>
+</div>
 
 <script>
-(function(){
-// ===== util =====
-const $ = sel => document.querySelector(sel);
-const el = (tag, props={}, kids=[]) => {
-  const n = document.createElement(tag);
-  for (const k in props){
-    if (k === 'class') n.className = props[k];
-    else if (k.startsWith('on')) n.addEventListener(k.slice(2).toLowerCase(), props[k]);
-    else if (k === 'html') n.innerHTML = props[k];
-    else n.setAttribute(k, props[k]);
-  }
-  (Array.isArray(kids)?kids:[kids]).filter(Boolean).forEach(k => n.appendChild(typeof k==='string'?document.createTextNode(k):k));
-  return n;
-};
-const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
-const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+try {
+  // Teste básico do ambiente
+  const root = document.createElement('div');
+  root.textContent = '✅ Ambiente JavaScript carregado com sucesso!';
+  root.style.marginTop = '20px';
+  document.querySelector('.card').appendChild(root);
 
-// ===== “hash” simples (para senha local) =====
-async function hash(text){
-  if (window.crypto && window.crypto.subtle) {
-    const enc = new TextEncoder().encode(text);
-    const buf = await crypto.subtle.digest('SHA-256', enc);
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  }
-  // fallback
-  let h=0; for(let i=0;i<text.length;i++){h=((h<<5)-h)+text.charCodeAt(i); h|=0;}
-  return String(h);
+  // Teste visual imediato:
+  document.body.style.background = 
+    "url('https://images.unsplash.com/photo-1589994965851-a3d0ee3d5953?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat, #0b0b0d";
+
+  document.getElementById('status').textContent = 'Ambiente OK! Se você vê o fundo do tribunal, tudo está funcionando.';
+  
+} catch(e){
+  document.getElementById('status').textContent = 'Erro ao carregar o jogo.';
+  document.getElementById('err').textContent = e.message;
 }
-
-// ===== dados base =====
-const ESTADOS = {"SP":["São Paulo","Campinas","Santos","Sorocaba"],"RJ":["Rio de Janeiro","Niterói","Petrópolis"],"MG":["Belo Horizonte","Uberlândia","Juiz de Fora"],"BA":["Salvador","Feira de Santana","Vitória da Conquista"]};
-const COURT_TYPES = [
-  {id:"criminal",icon:"⚖️",title:"Criminal",desc:"Crimes contra a pessoa e patrimônio. Júri popular em crimes dolosos contra a vida."},
-  {id:"familia",icon:"👨‍👩‍👧",title:"Família",desc:"Divórcios, guarda, pensão, adoção, medidas protetivas e acordos."},
-  {id:"trabalhista",icon:"💼",title:"Trabalhista",desc:"Vínculo, verbas rescisórias, horas extras, adicionais e danos morais."},
-];
-
-// ===== gerador 100 casos =====
-function seedCases(n=100){
-  const out=[], tipos=["criminal","familia","trabalhista"];
-  const C=[{t:"Homicídio simples em briga de bar",r:"Discussão escalou; réu alega legítima defesa.",g:{culpado:true,padrao:"alem_duvida"}},
-           {t:"Roubo com simulacro de arma",r:"Vítima diz que viu arma; simulacro próximo.",g:{culpado:true,padrao:"alem_duvida"}},
-           {t:"Tentativa de furto",r:"Réu surpreendido arrombando comércio.",g:{culpado:true,padrao:"alem_duvida"}},
-           {t:"Lesão corporal (doméstica)",r:"Vítima com escoriações; réu alega acidente.",g:{culpado:true,padrao:"alem_duvida"}}];
-  const F=[{t:"Guarda compartilhada",r:"Pais divergem sobre residência da criança.",g:{culpado:false,padrao:"preponderancia"}},
-           {t:"Revisão de pensão",r:"Genitor alega queda de renda.",g:{culpado:false,padrao:"preponderancia"}},
-           {t:"Regulamentação de visitas",r:"Conflito sobre pernoites e feriados.",g:{culpado:false,padrao:"preponderancia"}}];
-  const T=[{t:"Horas extras",r:"Alega 2h extras/dia; empresa fala em banco de horas.",g:{culpado:false,padrao:"preponderancia"}},
-           {t:"Vínculo x PJ",r:"Atuou como PJ; alega subordinação.",g:{culpado:false,padrao:"preponderancia"}},
-           {t:"Assédio moral",r:"Relata humilhações; empresa nega.",g:{culpado:false,padrao:"preponderancia"}}];
-  for (let i=0;i<n;i++){
-    const tipo=tipos[i%3]; const base=(tipo==="criminal"?C:tipo==="familia"?F:T)[i%3];
-    out.push({id:tipo[0]+String(i+1).padStart(3,"0"),tipo,titulo:base.t,resumo:base.r,gabarito:base.g,status:"na_fila",
-      provas:[{id:"E1",tipo:"depoimento",conteudo:"Prova 1"},{id:"E2",tipo:"documento",conteudo:"Prova 2"}]});
-  }
-  return out;
-}
-
-// ===== IA simulada (local) =====
-function iaFala(agente,caso,pergunta=""){
-  const header=agente==="acusacao"?"ACUSAÇÃO":agente==="defesa"?"DEFESA":"TESTEMUNHA";
-  const base=agente==="acusacao"?
-    "A robustez das provas aponta para condenação além de dúvida razoável.":
-    "Há dúvidas razoáveis que impõem absolvição ou solução menos gravosa.";
-  return `${header}:\n${pergunta?("Pergunta do juiz: "+pergunta+"\nResposta: "+base):base}`;
-}
-
-// ===== Save/Load =====
-const SAVE_PREFIX = "JUJ2_SAVE_";
-async function computeKey(user){ return SAVE_PREFIX + user; }
-
-async function saveGame(){
-  if(!S.user) return;
-  const key = await computeKey(S.user);
-  const payload = JSON.stringify({
-    user: S.user,
-    pass: S.passHash||null,
-    data: {
-      scr:S.scr, court:S.court, nome:S.nome, idade:S.idade,
-      estado:S.estado, cidade:S.cidade, avatar:S.avatar, // base64
-      casos:S.casos, fila:S.fila, atual:S.atual, julgando:S.julgando,
-      stats:S.stats
-    },
-    when: Date.now()
-  });
-  localStorage.setItem(key, payload);
-}
-
-async function loadGame(user){
-  const key = await computeKey(user);
-  const raw = localStorage.getItem(key);
-  if(!raw) return null;
-  try { return JSON.parse(raw); } catch(e){ return null; }
-}
-
-// Export/Import (backup)
-function exportGame(){
-  if(!S.user){ alert("Você precisa estar logado."); return; }
-  const blob = new Blob([localStorage.getItem(SAVE_PREFIX+S.user)||"{}"], {type:"application/json"});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `juiz_save_${S.user}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-}
-function importGame(file){
-  const r = new FileReader();
-  r.onload = ()=>{
-    try{
-      const obj = JSON.parse(r.result);
-      if(!obj || !obj.data){ alert("Arquivo inválido."); return; }
-      // escreve direto
-      localStorage.setItem(SAVE_PREFIX+(obj.user||"player"), JSON.stringify(obj));
-      alert("Save importado! Faça login com o usuário do arquivo.");
-    }catch(e){ alert("Falha ao importar."); }
-  };
-  r.readAsText(file);
-}
-
-// ===== estado =====
-const S={
-  // sessão
-  scr:"login", // login|splash|home|avatar|office|trial
-  user:"", passHash:null,
-
-  // jogador
-  court:null,
-  avatar:null, // base64
-  nome:"",
-  idade:"",
-  estado:"SP",
-  cidade:ESTADOS["SP"][0],
-
-  // jogo
-  casos:seedCases(),
-  fila:[],
-  atual:null,
-  julgando:null,
-  stats:{j:0,a:0}
-};
-
-// ===== render =====
-function render(){
-  const root=$('#app'); root.innerHTML="";
-  if(S.scr==="login"){ root.appendChild(viewLogin()); return; }
-  if(S.scr==="splash"){ root.appendChild(viewSplash()); return; }
-  if(S.scr==="home"){ root.appendChild(viewHome()); return; }
-  if(S.scr==="avatar"){ root.appendChild(viewAvatar()); return; }
-  if(S.scr==="office"){ root.appendChild(viewOffice()); return; }
-  if(S.scr==="trial"){ root.appendChild(viewTrial()); return; }
-}
-
-// ===== Views =====
-function viewLogin(){
-  const userInput = el('input',{placeholder:'Usuário',style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'});
-  const passInput = el('input',{type:'password',placeholder:'Senha (opcional)',style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'});
-
-  const knownUsers = Object.keys(localStorage).filter(k=>k.startsWith(SAVE_PREFIX)).map(k=>k.replace(SAVE_PREFIX,''));
-
-  const login = async ()=>{
-    const u = userInput.value.trim();
-    if(!u){ alert("Informe um usuário."); return; }
-    const exists = await loadGame(u);
-    if(!exists){
-      // criar novo perfil
-      S.user = u;
-      S.passHash = passInput.value ? await hash(passInput.value) : null;
-      S.court=null; S.avatar=null; S.nome=""; S.idade=""; S.estado="SP"; S.cidade=ESTADOS["SP"][0];
-      S.casos = seedCases(); S.fila=[]; S.atual=null; S.julgando=null; S.stats={j:0,a:0};
-      await saveGame();
-      S.scr="splash"; render();
-    }else{
-      // checar senha se houver
-      const needs = !!exists.pass;
-      if(needs){
-        const h = await hash(passInput.value||"");
-        if(h!==exists.pass){ alert("Senha incorreta."); return; }
-      }
-      // restaurar
-      S.user = exists.user;
-      S.passHash = exists.pass||null;
-      Object.assign(S, exists.data);
-      S.scr="splash"; render();
-    }
-  };
-
-  const delUser = async ()=>{
-    const u = prompt("Digite o usuário que deseja remover:");
-    if(!u) return;
-    const key = await computeKey(u);
-    if(localStorage.getItem(key)){
-      if(confirm(`Remover o perfil "${u}" e todo o progresso?`)){
-        localStorage.removeItem(key); alert("Removido.");
-        render();
-      }
-    }else{
-      alert("Perfil não encontrado.");
-    }
-  };
-
-  const importInput = el('input',{type:'file',accept:'application/json',onchange:(e)=>{ const f=e.target.files?.[0]; if(f) importGame(f); }});
-
-  return el('div',{class:'bg-hero'},[
-    el('div',{},[
-      el('div',{class:'pill'},'Vale Produção apresenta'),
-      el('div',{class:'title',style:'margin:10px 0 20px'},'Jogo do Juiz 2.0'),
-      el('div',{class:'wrap card',style:'max-width:520px;margin:auto'},[
-        el('div',{class:'muted'},'Entre com seu usuário (criaremos se não existir):'),
-        el('div',{style:'height:8px'}), userInput,
-        el('div',{style:'height:8px'}),
-        passInput,
-        el('div',{style:'height:12px'}),
-        el('div',{class:'row'},[
-          el('button',{class:'btn ok',onclick:login},'Entrar / Criar perfil'),
-          el('button',{class:'btn ghost',onclick:delUser},'Remover perfil'),
-          el('label',{class:'btn ghost'},['Importar Save', importInput])
-        ]),
-        knownUsers.length ? el('div',{style:'margin-top:12px'},[
-          el('div',{class:'muted',style:'margin-bottom:6px'},'Perfis encontrados:'),
-          el('div',{class:'row'}, knownUsers.map(u=> el('span',{class:'pill'},u)))
-        ]) : null
-      ])
-    ])
-  ]);
-}
-
-function viewSplash(){
-  return el('div',{class:'bg-hero'},[
-    el('div',{},[
-      el('div',{class:'pill'},`Perfil: ${S.user}`),
-      el('div',{class:'title',style:'margin:10px 0'},'Jogo do Juiz'),
-      el('div',{class:'row',style:'justify-content:center'},[
-        el('button',{class:'btn ok',onclick:()=>{S.scr="home";saveGame().then(render)}},'Começar'),
-        el('button',{class:'btn',onclick:()=>{if(confirm('Sair deste perfil?')){S.scr="login"; S.user=""; render();}}},'Trocar perfil'),
-        el('button',{class:'btn ghost',onclick:exportGame},'Exportar Save')
-      ])
-    ])
-  ]);
-}
-
-function viewHome(){
-  const grid=el('div',{class:'wrap grid grid-3'},COURT_TYPES.map(t=>el('div',{class:'card'},[
-    el('div',{style:'font-size:28px'},t.icon),
-    el('div',{style:'font-weight:700'},t.title),
-    el('div',{class:'muted'},t.desc),
-    el('div',{style:'height:10px'}),
-    el('button',{class:'btn ok',onclick:()=>{S.court=t.id; S.fila=S.casos.filter(c=>c.tipo===t.id); S.scr="avatar"; saveGame().then(render);}},'Escolher')
-  ])));
-  const topbar = el('div',{class:'wrap row',style:'justify-content:space-between;margin-top:10px'},[
-    el('span',{class:'pill'},`Usuário: ${S.user}`),
-    el('div',{class:'row'},[
-      el('button',{class:'btn ghost',onclick:exportGame},'Exportar'),
-      el('button',{class:'btn ghost',onclick:()=>{S.scr="login"; render();}},'Sair')
-    ])
-  ]);
-  return el('div',{},[topbar, grid]);
-}
-
-function viewAvatar(){
-  const foto=el('div',{class:'card'},[
-    el('div',{class:'muted'},'Foto (upload)'),
-    el('input',{type:'file',accept:'image/*',onchange:e=>{
-      const f=e.target.files&&e.target.files[0];
-      if(!f) return;
-      const r = new FileReader();
-      r.onload = ()=>{ S.avatar = r.result; saveGame().then(render); };
-      r.readAsDataURL(f); // salva base64
-    }}),
-    el('div',{style:'margin-top:10px'},
-      S.avatar?el('img',{src:S.avatar,class:'avatar-lg'}):el('div',{class:'muted'},'Pré-visualização'))
-  ]);
-
-  const form=el('div',{class:'card'},[
-    el('div',{},[el('div',{class:'muted'},'Nome'),el('input',{value:S.nome,oninput:e=>{S.nome=e.target.value;saveGame();},style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'})]),
-    el('div',{style:'height:8px'}),
-    el('div',},[el('div',{class:'muted'},'Idade'),el('input',{value:S.idade,oninput:e=>{S.idade=e.target.value;saveGame();},style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'})]),
-    el('div',{style:'height:8px'}),
-    el('div',{},[el('div',{class:'muted'},'Estado'),
-      el('select',{onchange:e=>{S.estado=e.target.value; S.cidade=ESTADOS[S.estado][0]; saveGame(); render();}, style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'},
-        Object.keys(ESTADOS).map(uf=>el('option',{value:uf,selected:uf===S.estado},uf)))]),
-    el('div',{style:'height:8px'}),
-    el('div',{},[el('div',{class:'muted'},'Cidade'),
-      el('select',{onchange:e=>{S.cidade=e.target.value;saveGame();},style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'},
-        ESTADOS[S.estado].map(c=>el('option',{value:c,selected:c===S.cidade},c)))]),
-    el('div',{style:'height:12px'}),
-    el('button',{class:'btn ok',onclick:()=>{S.scr="office"; saveGame().then(render);}},'Continuar → Escritório')
-  ]);
-
-  // currículo automático
-  const curr = (S.nome&&S.idade&&S.court) ? el('div',{class:'card'},[
-    el('div',{style:'font-weight:700'},'Currículo Gerado'),
-    el('div',{},`${S.nome}, ${S.idade} anos. Juiz(a) de ${COURT_TYPES.find(t=>t.id===S.court).title} em ${S.cidade}/${S.estado}.`),
-    el('ul',{},[
-      el('li',{},'Ritos processuais e padrões probatórios'),
-      el('li',{},'Conciliação quando possível'),
-      el('li',{},'Ética, imparcialidade e transparência'),
-    ])
-  ]) : null;
-
-  return el('div',{class: themeClassFor(S.court),}, el('div',{class:'wrap grid grid-2'},[foto,form,curr]));
-}
-
-function viewOffice(){
-  const IAJ=S.stats.j?S.stats.a/S.stats.j:0;
-  const header=el('div',{class:'row'},[
-    el('div',{class:'avatar'}, S.avatar?el('img',{src:S.avatar,style:'width:100%;height:100%;object-fit:cover'}):''),
-    el('div',{},[el('div',{style:'font-weight:700'},S.nome||"Juiz(a)"),
-      el('div',{class:'muted'},`${S.cidade}/${S.estado} • ${COURT_TYPES.find(t=>t.id===S.court)?.title||''}`)]),
-    el('div',{style:'flex:1'}),el('div',{class:'pill'},`IAJ ${(IAJ*100|0)}%`)
-  ]);
-
-  const fila=el('div',{class:'card'},[
-    el('div',{style:'font-weight:700'},'Fila de Processos'),
-    el('div',{class:'list'},
-      S.fila.length?S.fila.map(p=>el('div',{class:'card'},[
-        el('div',{style:'font-weight:700'},p.titulo),
-        el('div',{class:'muted'},p.resumo),
-        el('div',{class:'row'},[
-          el('button',{class:'btn',onclick:()=>{S.atual=p; saveGame().then(render);}},'Ler'),
-          el('button',{class:'btn ok',onclick:()=>{S.julgando=p; S.scr="trial"; saveGame().then(render);}},'Julgar')
-        ])
-      ])):[el('div',{class:'muted'},'Sem processos.')])
-  ]);
-
-  const met=el('div',{class:'card'},[
-    el('div',{style:'font-weight:700'},'Métricas'),
-    el('div',{class:'muted'},'Casos julgados'),
-    el('div',{class:'progress'},[el('span',{style:`width:${clamp(S.stats.j*2,0,100)}%`})]),
-    el('div',{class:'muted'},`IAJ ${(IAJ*100|0)}%`),
-    el('div',{style:'height:10px'}),
-    el('div',{class:'row'},[
-      el('button',{class:'btn ghost',onclick:exportGame},'Exportar Save'),
-      el('label',{class:'btn ghost'},['Importar Save', el('input',{type:'file',accept:'application/json',onchange:(e)=>{const f=e.target.files?.[0]; if(f) importGame(f);}})])
-    ])
-  ]);
-
-  const topbar = el('div',{class:'wrap row',style:'justify-content:space-between;margin-bottom:8px'},[
-    el('span',{class:'pill'},`Usuário: ${S.user}`),
-    el('button',{class:'btn',onclick:()=>{ if(confirm('Sair do jogo?')){ S.scr="home"; saveGame().then(render);} }},'Menu')
-  ]);
-
-  return el('div',{class: themeClassFor(S.court)},[
-    topbar,
-    el('div',{class:'wrap grid grid-2'},[el('div',{},[header,fila]),met])
-  ]);
-}
-
-function viewTrial(){
-  const c=S.julgando; if(!c)return el('div',{class:'wrap'},'Erro: nenhum caso.');
-  const area=el('pre',{class:'card',style:'min-height:220px'},'Clique em "Acusação" ou "Defesa".');
-
-  function ouvir(ag){ area.textContent=iaFala(ag,c); }
-  function perguntar(){
-    const q = prompt("Pergunta do juiz:");
-    if(q && q.trim()) area.textContent = iaFala(Math.random()<.5?'acusacao':'defesa', c, q.trim());
-  }
-  function veredito(culp){
-    const ac=(c.tipo==='criminal')?(culp===!!c.gabarito.culpado):true;
-    S.stats.j++; if(ac)S.stats.a++;
-    S.fila = S.fila.filter(x=>x.id!==c.id);
-    S.julgando=null; S.scr="office";
-    saveGame().then(render);
-  }
-
-  const dossie = el('div',{class:'card'},[
-    el('div',{style:'font-weight:700'},'Provas'),
-    el('ul',{},c.provas.map(p=>el('li',{},`[${p.id}] ${p.tipo}: ${p.conteudo}`)))
-  ]);
-
-  const controles = el('div',{class:'row',style:'margin:10px 0'},[
-    el('button',{class:'btn',onclick:()=>ouvir('acusacao')},'Acusação'),
-    el('button',{class:'btn',onclick:()=>ouvir('defesa')},'Defesa'),
-    el('button',{class:'btn',onclick:perguntar},'Perguntar'),
-    el('button',{class:'btn ok',onclick:()=>veredito(true)},'Condenar'),
-    el('button',{class:'btn',onclick:()=>veredito(false)},'Absolver'),
-    el('button',{class:'btn ghost',onclick:()=>{S.scr="office"; saveGame().then(render);}},'Voltar')
-  ]);
-
-  const title = el('div',{class:'wrap row',style:'justify-content:space-between;margin-bottom:8px'},[
-    el('span',{class:'pill'},`Julgando: ${c.titulo}`),
-    el('span',{class:'pill'}, COURT_TYPES.find(t=>t.id===S.court)?.title || '')
-  ]);
-
-  return el('div',{class: themeClassFor(S.court)},[
-    title,
-    el('div',{class:'wrap grid grid-2'},[
-      el('div',{},[
-        el('div',{class:'title'},'Sala de Julgamento'),
-        controles,
-        area
-      ]),
-      dossie
-    ])
-  ]);
-}
-
-// ===== tema visual por tribunal =====
-function themeClassFor(court){
-  if(court==="familia") return "theme-familia";
-  if(court==="trabalhista") return "theme-trabalhista";
-  return "theme-criminal"; // padrão
-}
-
-// ===== start =====
-render();
-})();
 </script>
 </body>
 </html>
