@@ -4,40 +4,312 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Jogo do Juiz — Vale Produção</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+
+  <!-- React/ReactDOM PRODUCTION -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Babel Standalone p/ JSX no navegador -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/framer-motion/dist/framer-motion.umd.js"></script>
+
+  <!-- Framer Motion UMD PRODUCTION -->
+  <script src="https://unpkg.com/framer-motion/dist/framer-motion.umd.min.js"></script>
+
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>html,body,#root{height:100%}</style>
+
+  <style>
+    html,body,#root { height: 100% }
+    /* Overlay simples de erro */
+    #err {
+      position: fixed; inset: 0; background: rgba(0,0,0,.85);
+      color: #fff; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      padding: 16px; display: none; overflow: auto; z-index: 99999;
+    }
+    #err pre { white-space: pre-wrap; }
+  </style>
 </head>
 <body class="bg-black text-white">
   <div id="root"></div>
-  <script type="text/babel">
-const { useState, useEffect, useMemo, useRef } = React;
-const { motion } = window.framerMotion;
-const ESTADOS = {"SP":["São Paulo","Campinas","Santos","Sorocaba"],"RJ":["Rio de Janeiro","Niterói","Petrópolis"],"MG":["Belo Horizonte","Uberlândia","Juiz de Fora"],"BA":["Salvador","Feira de Santana","Vitória da Conquista"]};
-const COURT_TYPES = [{id:"criminal",icon:"⚖️",title:"Criminal",desc:"Crimes contra a pessoa e patrimônio. Júri popular em crimes dolosos contra a vida."},{id:"familia",icon:"👨‍👩‍👧",title:"Família",desc:"Divórcios, guarda, pensão, adoção, medidas protetivas e acordos de convivência."},{id:"trabalhista",icon:"💼",title:"Trabalhista",desc:"Vínculo, verbas rescisórias, horas extras, adicionais, dano moral e acordos."}];
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const SOUND_URLS={gavel:"https://cdn.pixabay.com/download/audio/2022/03/15/audio_b8e7f6b3a0.mp3?filename=judge-gavel-182004.mp3",ambience:"https://cdn.pixabay.com/download/audio/2022/10/25/audio_6d02f9f2c3.mp3?filename=large-room-ambience-124106.mp3",murmur:"https://cdn.pixabay.com/download/audio/2021/09/16/audio_7b4b2d7f6c.mp3?filename=crowd-murmur-ambient-75537.mp3"};
-function useSound(url,enabled=true,volume=0.7){const ref=useRef(null);useEffect(()=>{const a=new Audio(url);a.volume=volume;ref.current=a;return()=>{a.pause();ref.current=null}},[url]);const play=()=>{if(enabled&&ref.current){ref.current.currentTime=0;ref.current.play()}};const stop=()=>{if(ref.current){ref.current.pause();ref.current.currentTime=0}};return{play,stop}}
-function useAmbience(url,enabled=true,screen=""){const ref=useRef(null);useEffect(()=>{const a=new Audio(url);a.loop=true;a.volume=0.35;ref.current=a;return()=>{a.pause();ref.current=null}},[url]);useEffect(()=>{if(!ref.current)return;if(enabled&&(screen==='office'||screen==='trial')){ref.current.play()}else{ref.current.pause()}},[enabled,screen]);return{start:()=>ref.current?.play(),stop:()=>ref.current?.pause()}}
-function useTypewriter(fullText,speed=18,play=true){const [text,setText]=useState("");useEffect(()=>{if(!play)return setText(fullText);setText("");let i=0;const id=setInterval(()=>{i++;setText(fullText.slice(0,i));if(i>=fullText.length)clearInterval(id)},speed);return()=>clearInterval(id)},[fullText,speed,play]);return text}
-const LS_KEY="jj_save_v1";function saveState(data){try{localStorage.setItem(LS_KEY,JSON.stringify(data))}catch(e){}}function loadState(){try{const s=localStorage.getItem(LS_KEY);return s?JSON.parse(s):null}catch(e){return null}}function clearState(){try{localStorage.removeItem(LS_KEY)}catch(e){}}
-const PROVIDER="local-sim";async function iaFala(agente,caso,promptExtra=""){const pick=(arr,k)=>arr.slice().sort(()=>0.5-Math.random()).slice(0,k);const provas=pick(caso.provas,Math.min(3,caso.provas.length));const header=agente==="acusacao"?"ACUSAÇÃO":agente==="defesa"?"DEFESA":"TESTEMUNHA";const linhas=provas.map((p)=>`• [${p.id}/${p.tipo}] ${p.conteudo}`);const tese=agente==="acusacao"?(caso.tipo==="criminal"?"A robustez do conjunto probatório supera o limiar do 'além de dúvida razoável'.":"A preponderância da prova documental e testemunhal favorece a tese inicial."):(caso.tipo==="criminal"?"As inconsistências e lacunas geram dúvida razoável, impondo absolvição.":"A parte adversa não se desincumbiu do ônus probatório; a versão do Requerente é mais verossímil.");const texto=`${header}:
-${linhas.join("
-")}
+  <div id="err"><b>Erro de execução:</b><pre id="err-msg"></pre></div>
 
-Tese: ${tese}`;await new Promise(r=>setTimeout(r,250+Math.random()*450));return{texto,citacoes:provas.map(p=>p.id)}}
-function App(){const saved=loadState();const [screen,setScreen]=useState(saved?.screen||"splash");const [court,setCourt]=useState(saved?.court||null);const [avatarUrl,setAvatarUrl]=useState(saved?.avatarUrl||"");const [nome,setNome]=useState(saved?.nome||"");const [idade,setIdade]=useState(saved?.idade||"");const [estado,setEstado]=useState(saved?.estado||"SP");const [cidade,setCidade]=useState(saved?.cidade||ESTADOS["SP"][0]);const [cases,setCases]=useState([]);const [playSounds,setPlaySounds]=useState(saved?.playSounds??true);const gavel=useSound(SOUND_URLS.gavel,playSounds);const murmur=useSound(SOUND_URLS.murmur,playSounds,0.5);const ambience=useAmbience(SOUND_URLS.ambience,playSounds,screen);const [fila,setFila]=useState(saved?.fila||[]);const [atual,setAtual]=useState(null);const [julgando,setJulgando]=useState(null);const [stats,setStats]=useState(saved?.stats||{julgados:0,acertos:0,prestigio:0});const [stj,setStj]=useState(saved?.stj||{candidato:false,ativo:false});useEffect(()=>{fetch("casos_seed.json").then(r=>r.json()).then(data=>{const lista=data.casos||[];setCases(lista);if(!saved?.fila&&court){const f=lista.filter(c=>c.tipo===court&&c.status==="na_fila");setFila(f)}})},[]);useEffect(()=>{if(!court||cases.length===0)return;const f=cases.filter(c=>c.tipo===court&&c.status==="na_fila");setFila(f)},[court,cases]);useEffect(()=>{saveState({screen,court,avatarUrl,nome,idade,estado,cidade,playSounds,fila,stats,stj})},[screen,court,avatarUrl,nome,idade,estado,cidade,playSounds,fila,stats,stj]);const curriculo=useMemo(()=>{if(!nome||!idade||!court)return null;const tit=COURT_TYPES.find(t=>t.id===court)?.title;return{resumo:`${nome}, ${idade} anos. Juiz(a) de ${tit} em ${cidade}/${estado}. Formação em Direito, foco em decisões fundamentadas e gestão de pauta eficiente.`,destaques:["Domínio de ritos processuais e padrões probatórios","Foco em conciliação sempre que possível","Ética, imparcialidade e transparência"]}},[nome,idade,court,cidade,estado]);useEffect(()=>{const IAJ=stats.julgados?stats.acertos/stats.julgados:0;if(!stj.ativo&&!stj.candidato&&stats.julgados>=15&&IAJ>=0.7){setStj(s=>({...s,candidato:true}))}},[stats]);function aceitarSTJ(){setStj({candidato:false,ativo:true});setCourt("criminal");setScreen("office")}function recusarSTJ(){setStj(s=>({...s,candidato:false}))}function registrarVeredito(caso,culpado){const acertou=(caso.tipo==='criminal')?(culpado===!!caso.gabarito.culpado):true;setStats(s=>{const julgados=s.julgados+1;const acertos=s.acertos+(acertou?1:0);const IAJ=julgados?acertos/julgados:0;const prestigio=Math.min(100,Math.round(IAJ*70+Math.min(30,julgados/2)));return{julgados,acertos,prestigio}})}
-if(screen==="splash"){return(<motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black text-white grid place-items-center"><div className="text-center"><div className="text-sm tracking-widest uppercase opacity-80">Apresentado por</div><div className="text-3xl font-bold mt-1">Vale Produção</div><div className="mt-6 text-5xl font-extrabold tracking-tight">Jogo do Juiz</div><div className="mt-10"><motion.button whileHover={{scale:1.04}} whileTap={{scale:0.98}} onClick={()=>setScreen("home")} className="rounded-2xl bg-white/10 px-6 py-3 ring-1 ring-white/20">Entrar</motion.button></div></div></motion.div>)}
-if(screen==="home"){return(<div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-zinc-100"><div className="max-w-6xl mx-auto p-6"><header className="flex items-center justify-between"><div className="flex items-center gap-3"><h1 className="text-3xl md:text-4xl font-bold tracking-tight">Jogo do Juiz</h1><span className="px-2 py-1 rounded-lg text-xs bg-white/10">Protótipo gratuito • IA local</span></div><div className="flex items-center gap-2"><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>{const now=loadState();if(now){clearState();location.reload();}}} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm">🔄 Resetar progresso</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>setPlaySounds(s=>!s)} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm">{playSounds?'🔊 Sons ON':'🔇 Sons OFF'}</motion.button></div></header><section className="mt-10"><h2 className="text-xl font-semibold mb-4">Escolha seu Tribunal</h2><div className="grid md:grid-cols-3 gap-4">{COURT_TYPES.map(t=>(<motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} key={t.id} onClick={()=>{setCourt(t.id);setScreen("avatar");}} className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-5 text-left shadow-xl"><div className="text-4xl mb-3">{t.icon}</div><div className="text-lg font-semibold">{t.title}</div><p className="text-sm opacity-80 mt-1">{t.desc}</p></motion.button>))}</div></section></div></div>)}
-if(screen==="avatar"){return(<div className="relative overflow-hidden min-h-screen bg-[url('https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white"><div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div><div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.25)_40%,rgba(0,0,0,0.7)_100%)]"></div><div className="relative backdrop-brightness-50 min-h-screen"><div className="max-w-4xl mx-auto p-6"><h2 className="text-3xl font-bold">Seu Avatar</h2><p className="opacity-90">Foto cinematográfica, nome e idade. O currículo será gerado automaticamente.</p><div className="mt-6 grid md:grid-cols-2 gap-6"><div className="rounded-xl bg-black/50 p-4"><label className="text-sm opacity-80">Foto (upload)</label><input type="file" accept="image/*" className="mt-2 block w-full text-sm" onChange={(e)=>{const f=e.target.files?.[0];if(f){const url=URL.createObjectURL(f);setAvatarUrl(url);}}}/><div className="mt-4 aspect-[4/5] rounded-xl overflow-hidden bg-white/10 flex items-center justify-center">{avatarUrl?(<img src={avatarUrl} className="w-full h-full object-cover"/>):(<span className="opacity-60 text-sm">Pré-visualização</span>)}</div></div><div className="rounded-xl bg-black/50 p-4 space-y-4"><div><label className="text-sm opacity-80">Nome</label><input value={nome} onChange={(e)=>setNome(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none" placeholder="Ex.: Dra. Maria Alves"/></div><div><label className="text-sm opacity-80">Idade</label><input value={idade} onChange={(e)=>setIdade(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none" placeholder="Ex.: 38"/></div><div><label className="text-sm opacity-80">Estado</label><select value={estado} onChange={(e)=>{setEstado(e.target.value);setCidade(ESTADOS[e.target.value][0]);}} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none">{Object.keys(ESTADOS).map(uf=>(<option key={uf}>{uf}</option>))}</select></div><div><label className="text-sm opacity-80">Cidade</label><select value={cidade} onChange={(e)=>setCidade(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none">{ESTADOS[estado].map(c=>(<option key={c}>{c}</option>))}</select></div><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=> setScreen("office")} disabled={!nome||!idade} className="w-full mt-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 p-3 font-semibold">Continuar → Escritório</motion.button></div></div></div></div></div>)}
-if(screen==="office"){const IAJ=stats.julgados?(stats.acertos/stats.julgados):0;return(<div className="relative overflow-hidden min-h-screen bg-[url('https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white"><div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div><div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.25)_40%,rgba(0,0,0,0.7)_100%)]"></div><div className="relative backdrop-brightness-50 min-h-screen"><div className="max-w-6xl mx-auto p-6"><header className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-white/40">{avatarUrl?<img src={avatarUrl} className="w-full h-full object-cover"/>:<div className="w-full h-full bg-white/20"/>}</div><div><div className="font-semibold">{nome||"Juiz(a)"}</div><div className="text-xs opacity-80">{cidade}/{estado} • {COURT_TYPES.find(t=>t.id===court)?.title}</div></div></div><div className="flex items-center gap-2"><div className="text-sm opacity-80">IAJ: {(IAJ*100).toFixed(0)}%</div><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>{const now=loadState();if(now){clearState();location.reload();}}} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm">Reset</motion.button></div></header><section className="mt-6 grid md:grid-cols-3 gap-6"><div className="md:col-span-2 rounded-2xl bg-black/50 p-5"><h3 className="text-lg font-semibold">Fila de Processos</h3><div className="mt-3 space-y-3 max-h-[420px] overflow-auto pr-1">{fila.length===0&&(<div className="opacity-70">Sem processos na fila para este tribunal.</div>)}{fila.map(proc=>(<div key={proc.id} className="rounded-xl bg-white/5 p-4 flex items-start justify-between gap-4"><div><div className="font-semibold">{proc.titulo}</div><div className="text-xs opacity-80">{proc.resumo}</div></div><div className="flex gap-2"><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm" onClick={()=> setAtual(proc)}>Ler processo</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} className="rounded-xl bg-amber-500/90 hover:bg-amber-600 px-3 py-2 text-sm" onClick={()=> setFila(f=>[...f.filter(x=>x.id!==proc.id),proc])}>Arquivar (mandar ao fim)</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm" onClick={()=>{setJulgando(proc);setScreen('trial');murmur.stop();ambience.start();}}>Iniciar julgamento</motion.button></div></div>))}</div></div><div className="rounded-2xl bg-black/50 p-5"><h3 className="text-lg font-semibold">Métricas</h3><div className="mt-3 space-y-3"><div><div className="text-sm opacity-80">Casos julgados</div><div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{width:`${clamp(stats.julgados*2,0,100)}%`}}></div></div><div className="text-xs mt-1">{stats.julgados}</div></div><div><div className="text-sm opacity-80">IAJ (acertos/gabarito)</div><div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-sky-500" style={{width:`${clamp((stats.acertos/(stats.julgados||1))*100,0,100)}%`}}></div></div><div className="text-xs mt-1">{stats.acertos} acertos</div><div className="mt-3"><div className="text-sm opacity-80">Prestígio Jurídico</div><div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-yellow-500" style={{width:`${clamp(stats.prestigio,0,100)}%`}}></div></div><div className="text-xs mt-1">{stats.prestigio}%</div></div></div></div>{stj.candidato&&(<div className="mt-6 rounded-xl bg-white/10 p-4"><div className="font-semibold">Convite: Candidatar-se ao STJ</div><p className="text-sm opacity-80 mt-1">Seu desempenho chamou atenção. Deseja iniciar o processo de promoção? Haverá uma prova objetiva e análise curricular.</p><div className="flex gap-2 mt-3"><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>{setStj({candidato:false,ativo:true});setCourt('criminal');setScreen('office')}} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm">Aceitar</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>setStj(s=>({...s,candidato:false}))} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm">Agora não</motion.button></div></div>)}{atual&&(<div className="mt-6 rounded-xl bg-white/10 p-4"><div className="font-semibold">Processo selecionado</div><div className="text-sm mt-1">{atual.titulo}</div><div className="text-xs opacity-80">{atual.resumo}</div><div className="mt-2 text-xs opacity-80">Provas:</div><ul className="text-xs list-disc pl-5">{atual.provas.map(p=>(<li key={p.id}>[{p.id}] {p.tipo}: {p.conteudo}</li>))}</ul></div>)}</div></section></div></div></div>)}
-if(screen==="trial"){return(<TrialView caso={julgando} onVoltar={()=> setScreen("office")} onVeredito={(culpado)=>{const acertou=(julgando.tipo==='criminal')?(culpado===!!julgando.gabarito.culpado):true;setStats(s=>{const julgados=s.julgados+1;const acertos=s.acertos+(acertou?1:0);const IAJ=julgados?acertos/julgados:0;const prestigio=Math.min(100,Math.round(IAJ*70+Math.min(30,julgados/2)));return{julgados,acertos,prestigio}});setFila(f=>f.filter(x=>x.id!==julgando.id));setScreen("office");}}/>)}
-return null}
-function TrialView({caso,onVoltar,onVeredito}){const [fase,setFase]=useState("inicio");const [textoAcus,setTextoAcus]=useState("");const [textoDef,setTextoDef]=useState("");const [showAcus,setShowAcus]=useState(false);const [showDef,setShowDef]=useState(false);const [perg,setPerg]=useState("");const [resp,setResp]=useState("");const [jurados,setJurados]=useState(()=>Array.from({length:12},(_,i)=>({id:i+1,voto:null,certeza:0})));const sGavel=useSound(SOUND_URLS.gavel,true,0.85);const sMurmur=useSound(SOUND_URLS.murmur,true,0.45);function deliberar(){const out=jurados.map(j=>{const certeza=Math.round(50+Math.random()*50);const voto=Math.random()<0.58;return{...j,voto,certeza}});setJurados(out);sMurmur.play()}const typedAcus=useTypewriter(textoAcus,12,true);const typedDef=useTypewriter(textoDef,12,true);const typedResp=useTypewriter(resp,14,true);async function ouvirAcusacao(){setFase("acusacao");const r=await iaFala("acusacao",caso);setTextoAcus(r.texto);setShowAcus(true);sMurmur.play()}async function ouvirDefesa(){setFase("defesa");const r=await iaFala("defesa",caso);setTextoDef(r.texto);setShowDef(true);sMurmur.play()}async function perguntar(){if(!perg.trim())return;setFase("perguntas");const alvo=Math.random()<0.5?"acusacao":"defesa";const r=await iaFala(alvo,caso,`Responda objetivamente à pergunta do juiz: ${perg}.`);setResp(`${alvo.toUpperCase()}: ${r.texto}`)}return(<div className="relative overflow-hidden min-h-screen bg-[url('https://images.unsplash.com/photo-1593113598332-cc1a3f2b7f3e?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white"><div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div><div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.25)_40%,rgba(0,0,0,0.7)_100%)]"></div><div className="relative backdrop-brightness-50 min-h-screen"><div className="max-w-6xl mx-auto p-6"><div className="flex items-center justify-between"><div><h2 className="text-2xl font-bold">Sala de Julgamento</h2><div className="text-sm opacity-80">{caso?.titulo}</div></div><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={onVoltar} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm">← Voltar</motion.button></div><div className="mt-6 grid md:grid-cols-3 gap-6"><div className="md:col-span-2 rounded-2xl bg-black/50 p-5 space-y-4"><div className="flex gap-2 flex-wrap"><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>setFase("inicio")} className={`px-3 py-2 rounded-xl text-sm ${fase==='inicio'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Iniciar julgamento</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={ouvirAcusacao} className={`px-3 py-2 rounded-xl text-sm ${fase==='acusacao'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Palavra à Acusação</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={ouvirDefesa} className={`px-3 py-2 rounded-xl text-sm ${fase==='defesa'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Ouvir Defesa</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>setFase("testemunhas")} className={`px-3 py-2 rounded-xl text-sm ${fase==='testemunhas'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Ouvir Testemunhas</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>setFase("decidir")} className={`px-3 py-2 rounded-xl text-sm ${fase==='decidir'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Dar Veredito</motion.button></div>{showAcus&&(<div className="rounded-xl bg-white/5 p-4"><div className="text-xs opacity-80 mb-1">ACUSAÇÃO</div><pre className="whitespace-pre-wrap text-sm leading-relaxed">{typedAcus}</pre></div>)}{showDef&&(<div className="rounded-xl bg-white/5 p-4"><div className="text-xs opacity-80 mb-1">DEFESA</div><pre className="whitespace-pre-wrap text-sm leading-relaxed">{typedDef}</pre></div>)}<div className="rounded-xl bg-white/5 p-4"><div className="text-xs opacity-80 mb-1">Perguntas do Juiz</div><div className="flex gap-2"><input value={perg} onChange={(e)=>setPerg(e.target.value)} className="flex-1 rounded-xl bg-white/10 p-2 outline-none text-sm" placeholder="Digite sua pergunta…"/><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={perguntar} className="rounded-xl bg-sky-600 hover:bg-sky-700 px-3 py-2 text-sm">Perguntar</motion.button></div>{typedResp&&(<div className="mt-3 text-sm opacity-90 whitespace-pre-wrap">{typedResp}</div>)}</div></div><div className="rounded-2xl bg-black/50 p-5"><div className="text-lg font-semibold">Dossiê (Provas)</div><ul className="mt-2 text-sm space-y-2 max-h-[360px] overflow-auto pr-1">{caso?.provas.map(p=>(<li key={p.id} className="rounded-lg bg-white/5 p-3"><div className="text-xs opacity-80">[{p.id}] {p.tipo}</div><div>{p.conteudo}</div></li>))}</ul>{fase==="testemunhas"&&(<div className="mt-4"><div className="text-sm opacity-80 mb-2">Júri Popular (12)</div><div className="grid grid-cols-3 gap-2">{jurados.map(j=>(<div key={j.id} className="rounded-lg bg-white/10 p-2"><div className="text-[10px] opacity-70">J{String(j.id).padStart(2,'0')}</div><div className="h-1 w-full bg-white/10 rounded"><div className={`h-1 rounded ${j.voto===null?'bg-white/20':(j.voto?'bg-rose-500':'bg-emerald-500')}`} style={{width:`${j.certeza||0}%`}}></div></div></div>))}</div><div className="flex gap-2 mt-3"><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={deliberar} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm">Iniciar Deliberação</motion.button></div></div>)}{fase==="decidir"&&(<div className="mt-5"><div className="text-sm opacity-80">Veredito</div><div className="flex gap-2 mt-2"><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>{sGavel.play();onVeredito(true);}} className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 px-3 py-2 text-sm">Condenar</motion.button><motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}} onClick={()=>{sGavel.play();onVeredito(false);}} className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm">Absolver</motion.button></div><p className="text-[11px] opacity-70 mt-2">Criminal aplica padrão “além de dúvida razoável”. Nos demais, considere preponderância da prova e melhores interesses (família).</p></div>)}</div></div><footer className="mt-6 text-xs opacity-70">Simulação educacional. Não substitui aconselhamento jurídico.</footer></div></div></div>)}
-const root = ReactDOM.createRoot(document.getElementById('root'));root.render(<App/>);
+  <script>
+    // Mostra overlay se algum erro JS acontecer
+    window.addEventListener('error', (e) => {
+      const box = document.getElementById('err');
+      const msg = document.getElementById('err-msg');
+      if (box && msg) {
+        box.style.display = 'block';
+        msg.textContent = (e?.message || 'Erro desconhecido') + (e?.error?.stack ? '\n\n' + e.error.stack : '');
+      }
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      const box = document.getElementById('err');
+      const msg = document.getElementById('err-msg');
+      if (box && msg) {
+        box.style.display = 'block';
+        msg.textContent = 'Promise rejeitada: ' + (e?.reason?.message || e?.reason || 'sem mensagem');
+      }
+    });
+
+    // Framer Motion global pode ser window.framerMotion OU window['framer-motion'] dependendo do bundle.
+    window.__FM = window.framerMotion || window['framer-motion'] || null;
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+    const motion = (window.__FM && window.__FM.motion) ? window.__FM.motion : { div: (p)=>React.createElement('div', p) };
+
+    // ------------- util -------------
+    const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+    const ESTADOS = {"SP":["São Paulo","Campinas","Santos","Sorocaba"],"RJ":["Rio de Janeiro","Niterói","Petrópolis"],"MG":["Belo Horizonte","Uberlândia","Juiz de Fora"],"BA":["Salvador","Feira de Santana","Vitória da Conquista"]};
+    const COURT_TYPES = [
+      {id:"criminal",icon:"⚖️",title:"Criminal",desc:"Crimes contra a pessoa e patrimônio. Júri popular em crimes dolosos contra a vida."},
+      {id:"familia",icon:"👨‍👩‍👧",title:"Família",desc:"Divórcios, guarda, pensão, adoção, medidas protetivas e acordos."},
+      {id:"trabalhista",icon:"💼",title:"Trabalhista",desc:"Vínculo, verbas rescisórias, horas extras, adicionais, dano moral e acordos."},
+    ];
+    const SOUND_URLS={gavel:"https://cdn.pixabay.com/download/audio/2022/03/15/audio_b8e7f6b3a0.mp3?filename=judge-gavel-182004.mp3",ambience:"https://cdn.pixabay.com/download/audio/2022/10/25/audio_6d02f9f2c3.mp3?filename=large-room-ambience-124106.mp3",murmur:"https://cdn.pixabay.com/download/audio/2021/09/16/audio_7b4b2d7f6c.mp3?filename=crowd-murmur-ambient-75537.mp3"};
+
+    function useSound(url,enabled=true,volume=0.7){const ref=useRef(null);useEffect(()=>{const a=new Audio(url);a.volume=volume;ref.current=a;return()=>{a.pause();ref.current=null}},[url]);const play=()=>{if(enabled&&ref.current){ref.current.currentTime=0;ref.current.play()}};const stop=()=>{if(ref.current){ref.current.pause();ref.current.currentTime=0}};return{play,stop}}
+    function useTypewriter(fullText,speed=18,play=true){const [text,setText]=useState("");useEffect(()=>{if(!play)return setText(fullText);setText("");let i=0;const id=setInterval(()=>{i++;setText(fullText.slice(0,i));if(i>=fullText.length)clearInterval(id)},speed);return()=>clearInterval(id)},[fullText,speed,play]);return text}
+
+    // -------- IA local (simulada) -------
+    async function iaFala(agente,caso,promptExtra=""){const pick=(arr,k)=>arr.slice().sort(()=>0.5-Math.random()).slice(0,k);const provas=pick(caso.provas,Math.min(3,caso.provas.length));const header=agente==="acusacao"?"ACUSAÇÃO":agente==="defesa"?"DEFESA":"TESTEMUNHA";const linhas=provas.map(p=>`• [${p.id}/${p.tipo}] ${p.conteudo}`);const tese=agente==="acusacao"?(caso.tipo==="criminal"?"A robustez do conjunto probatório supera o limiar do 'além de dúvida razoável'.":"A preponderância das evidências favorece a tese inicial."):(caso.tipo==="criminal"?"As inconsistências geram dúvida razoável, impondo absolvição.":"A parte adversa não se desincumbiu do ônus probatório.");const texto=`${header}:\n${linhas.join("\n")}\n\nTese: ${tese}`;await new Promise(r=>setTimeout(r,200+Math.random()*400));return{texto,citacoes:provas.map(p=>p.id)}}
+
+    // -------- Carregar casos do JSON -------
+    async function carregarCasos(){
+      const out = { casos: [], erro: null };
+      try {
+        const resp = await fetch('casos_seed.json', { cache: 'no-store' });
+        if(!resp.ok) throw new Error('Falha ao carregar casos_seed.json ('+resp.status+')');
+        const j = await resp.json();
+        out.casos = (j.casos || j || []);
+        if(Array.isArray(j.casos)) { out.total = j.total || j.casos.length; } else { out.total = out.casos.length; }
+      } catch (e) {
+        const box = document.getElementById('err');
+        const msg = document.getElementById('err-msg');
+        if (box && msg){
+          box.style.display='block';
+          msg.textContent = 'Erro ao baixar casos_seed.json: ' + (e.message || e);
+        }
+        out.erro = e;
+      }
+      return out;
+    }
+
+    // -------- App --------
+    function App(){
+      const [screen,setScreen]=useState('splash');
+      const [court,setCourt]=useState(null);
+      const [avatarUrl,setAvatarUrl]=useState('');
+      const [nome,setNome]=useState('');
+      const [idade,setIdade]=useState('');
+      const [estado,setEstado]=useState('SP');
+      const [cidade,setCidade]=useState(ESTADOS['SP'][0]);
+      const [cases,setCases]=useState([]);
+      const [fila,setFila]=useState([]);
+      const [atual,setAtual]=useState(null);
+      const [julgando,setJulgando]=useState(null);
+      const [stats,setStats]=useState({julgados:0,acertos:0,prestigio:0});
+
+      useEffect(()=>{(async()=>{const {casos}=await carregarCasos();setCases(casos);})();},[]);
+      useEffect(()=>{ if(!court) return; setFila(cases.filter(c=>c.tipo===court && c.status==='na_fila')); },[court,cases]);
+
+      function registrarVeredito(caso,culpado){ const acertou=(caso.tipo==='criminal')?(culpado===!!caso.gabarito.culpado):true; setStats(s=>{const julgados=s.julgados+1;const acertos=s.acertos+(acertou?1:0);const IAJ=julgados?acertos/julgados:0;const prestigio=Math.min(100,Math.round(IAJ*70+Math.min(30,julgados/2)));return{julgados,acertos,prestigio}}); }
+
+      if(screen==='splash'){
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black grid place-items-center">
+            <div className="text-center">
+              <div className="text-sm tracking-widest uppercase opacity-80">Apresentado por</div>
+              <div className="text-3xl font-bold mt-1">Vale Produção</div>
+              <div className="mt-6 text-5xl font-extrabold tracking-tight">Jogo do Juiz</div>
+              <div className="mt-10">
+                <button onClick={()=>setScreen('home')} className="rounded-2xl bg-white/10 px-6 py-3 ring-1 ring-white/20">Entrar</button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      if(screen==='home'){
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-zinc-100">
+            <div className="max-w-6xl mx-auto p-6">
+              <header className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Jogo do Juiz</h1>
+                  <span className="px-2 py-1 rounded-lg text-xs bg-white/10">Protótipo gratuito • IA local</span>
+                </div>
+              </header>
+
+              <section className="mt-10">
+                <h2 className="text-xl font-semibold mb-4">Escolha seu Tribunal</h2>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {COURT_TYPES.map(t=>(
+                    <button key={t.id} onClick={()=>{ setCourt(t.id); setScreen('avatar'); }} className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-5 text-left shadow-xl">
+                      <div className="text-4xl mb-3">{t.icon}</div>
+                      <div className="text-lg font-semibold">{t.title}</div>
+                      <p className="text-sm opacity-80 mt-1">{t.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+        )
+      }
+
+      if(screen==='avatar'){
+        return (
+          <div className="relative min-h-screen bg-[url('https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div>
+            <div className="relative max-w-4xl mx-auto p-6">
+              <h2 className="text-3xl font-bold">Seu Avatar</h2>
+              <div className="mt-6 grid md:grid-cols-2 gap-6">
+                <div className="rounded-xl bg-black/50 p-4">
+                  <label className="text-sm opacity-80">Foto (upload)</label>
+                  <input type="file" accept="image/*" className="mt-2 block w-full text-sm" onChange={(e)=>{const f=e.target.files?.[0]; if(f){ const url=URL.createObjectURL(f); setAvatarUrl(url); }}}/>
+                  <div className="mt-4 aspect-[4/5] rounded-xl overflow-hidden bg-white/10 flex items-center justify-center">
+                    {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover"/> : <span className="opacity-60 text-sm">Pré-visualização</span>}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-black/50 p-4 space-y-4">
+                  <div><label className="text-sm opacity-80">Nome</label><input value={nome} onChange={(e)=>setNome(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none" placeholder="Ex.: Dra. Maria Alves"/></div>
+                  <div><label className="text-sm opacity-80">Idade</label><input value={idade} onChange={(e)=>setIdade(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none" placeholder="Ex.: 38"/></div>
+                  <div><label className="text-sm opacity-80">Estado</label><select value={estado} onChange={(e)=>{setEstado(e.target.value); setCidade(ESTADOS[e.target.value][0]);}} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none">{Object.keys(ESTADOS).map(uf=>(<option key={uf}>{uf}</option>))}</select></div>
+                  <div><label className="text-sm opacity-80">Cidade</label><select value={cidade} onChange={(e)=>setCidade(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none">{ESTADOS[estado].map(c=>(<option key={c}>{c}</option>))}</select></div>
+                  <button onClick={()=> setScreen('office')} disabled={!nome||!idade} className="w-full mt-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 p-3 font-semibold">Continuar → Escritório</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      if(screen==='office'){
+        const IAJ = stats.julgados ? (stats.acertos / stats.julgados) : 0;
+        return (
+          <div className="relative min-h-screen bg-[url('https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div>
+            <div className="relative max-w-6xl mx-auto p-6">
+              <header className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-white/40">{avatarUrl?<img src={avatarUrl} className="w-full h-full object-cover"/>:<div className="w-full h-full bg-white/20"/>}</div>
+                  <div><div className="font-semibold">{nome||"Juiz(a)"}</div><div className="text-xs opacity-80">{cidade}/{estado} • {COURT_TYPES.find(t=>t.id===court)?.title}</div></div>
+                </div>
+                <div className="text-sm opacity-80">IAJ: {(IAJ*100|0)}%</div>
+              </header>
+
+              <section className="mt-6 grid md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 rounded-2xl bg-black/50 p-5">
+                  <h3 className="text-lg font-semibold">Fila de Processos</h3>
+                  <div className="mt-3 space-y-3 max-h-[420px] overflow-auto pr-1">
+                    {fila.length===0 && (<div className="opacity-70">Sem processos na fila para este tribunal.</div>)}
+                    {fila.map(proc=>(
+                      <div key={proc.id} className="rounded-xl bg-white/5 p-4 flex items-start justify-between gap-4">
+                        <div><div className="font-semibold">{proc.titulo}</div><div className="text-xs opacity-80">{proc.resumo}</div></div>
+                        <div className="flex gap-2">
+                          <button className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm" onClick={()=> window.alert(proc.provas.map(p=>`[${p.id}] ${p.tipo}: ${p.conteudo}`).join('\n'))}>Ler processo</button>
+                          <button className="rounded-xl bg-amber-500/90 hover:bg-amber-600 px-3 py-2 text-sm" onClick={()=> setFila(f=>[...f.filter(x=>x.id!==proc.id),proc])}>Arquivar (fim da fila)</button>
+                          <button className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm" onClick={()=>{ setJulgando(proc); setScreen('trial'); }}>Iniciar julgamento</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-black/50 p-5">
+                  <h3 className="text-lg font-semibold">Métricas</h3>
+                  <div className="mt-3 space-y-3">
+                    <div><div className="text-sm opacity-80">Casos julgados</div><div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{width: `${clamp(stats.julgados*2,0,100)}%`}}></div></div><div className="text-xs mt-1">{stats.julgados}</div></div>
+                    <div><div className="text-sm opacity-80">IAJ (acertos/gabarito)</div><div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-sky-500" style={{width: `${clamp((stats.acertos/(stats.julgados||1))*100,0,100)}%`}}></div></div><div className="text-xs mt-1">{stats.acertos} acertos</div></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        )
+      }
+
+      if(screen==='trial'){
+        return (
+          <TrialView caso={julgando} onVoltar={()=> setScreen('office')} onVeredito={(culpado)=>{ registrarVeredito(julgando,culpado); setFila(f=> f.filter(x=>x.id!==julgando.id)); setScreen('office'); }} />
+        )
+      }
+
+      return null;
+    }
+
+    function TrialView({caso,onVoltar,onVeredito}){
+      const [fase,setFase]=useState('inicio');
+      const [tA,setTA]=useState(''); const [tD,setTD]=useState('');
+      const [showA,setShowA]=useState(false); const [showD,setShowD]=useState(false);
+      const [perg,setPerg]=useState(''); const [resp,setResp]=useState('');
+      const typedA=useTypewriter(tA,12,true); const typedD=useTypewriter(tD,12,true); const typedR=useTypewriter(resp,14,true);
+
+      async function ouvirAcusacao(){ setFase('acusacao'); const r=await iaFala('acusacao',caso); setTA(r.texto); setShowA(true); }
+      async function ouvirDefesa(){ setFase('defesa'); const r=await iaFala('defesa',caso); setTD(r.texto); setShowD(true); }
+      async function perguntar(){ if(!perg.trim()) return; setFase('perguntas'); const alvo=Math.random()<0.5?'acusacao':'defesa'; const r=await iaFala(alvo,caso,`Responda objetivamente: ${perg}`); setResp(`${alvo.toUpperCase()}: ${r.texto}`); }
+
+      return (
+        <div className="relative min-h-screen bg-[url('https://images.unsplash.com/photo-1593113598332-cc1a3f2b7f3e?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div>
+          <div className="relative max-w-6xl mx-auto p-6">
+            <div className="flex items-center justify-between"><div><h2 className="text-2xl font-bold">Sala de Julgamento</h2><div className="text-sm opacity-80">{caso?.titulo}</div></div><button onClick={onVoltar} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm">← Voltar</button></div>
+
+            <div className="mt-6 grid md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 rounded-2xl bg-black/50 p-5 space-y-4">
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={()=>setFase('inicio')} className={`px-3 py-2 rounded-xl text-sm ${fase==='inicio'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Iniciar julgamento</button>
+                  <button onClick={ouvirAcusacao} className={`px-3 py-2 rounded-xl text-sm ${fase==='acusacao'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Palavra à Acusação</button>
+                  <button onClick={ouvirDefesa} className={`px-3 py-2 rounded-xl text-sm ${fase==='defesa'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Ouvir Defesa</button>
+                  <button onClick={()=>setFase('testemunhas')} className={`px-3 py-2 rounded-xl text-sm ${fase==='testemunhas'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Ouvir Testemunhas</button>
+                  <button onClick={()=>setFase('decidir')} className={`px-3 py-2 rounded-xl text-sm ${fase==='decidir'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Dar Veredito</button>
+                </div>
+
+                {showA && (<div className="rounded-xl bg-white/5 p-4"><div className="text-xs opacity-80 mb-1">ACUSAÇÃO</div><pre className="whitespace-pre-wrap text-sm leading-relaxed">{typedA}</pre></div>)}
+                {showD && (<div className="rounded-xl bg-white/5 p-4"><div className="text-xs opacity-80 mb-1">DEFESA</div><pre className="whitespace-pre-wrap text-sm leading-relaxed">{typedD}</pre></div>)}
+
+                <div className="rounded-xl bg-white/5 p-4">
+                  <div className="text-xs opacity-80 mb-1">Perguntas do Juiz</div>
+                  <div className="flex gap-2"><input value={perg} onChange={(e)=>setPerg(e.target.value)} className="flex-1 rounded-xl bg-white/10 p-2 outline-none text-sm" placeholder="Digite sua pergunta…"/><button onClick={perguntar} className="rounded-xl bg-sky-600 hover:bg-sky-700 px-3 py-2 text-sm">Perguntar</button></div>
+                  {typedR && (<div className="mt-3 text-sm opacity-90 whitespace-pre-wrap">{typedR}</div>)}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-black/50 p-5">
+                <div className="text-lg font-semibold">Dossiê (Provas)</div>
+                <ul className="mt-2 text-sm space-y-2 max-h-[360px] overflow-auto pr-1">
+                  {caso?.provas.map(p=>(
+                    <li key={p.id} className="rounded-lg bg-white/5 p-3">
+                      <div className="text-xs opacity-80">[{p.id}] {p.tipo}</div>
+                      <div>{p.conteudo}</div>
+                    </li>
+                  ))}
+                </ul>
+
+                {fase==='decidir' && (
+                  <div className="mt-5">
+                    <div className="text-sm opacity-80">Veredito</div>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={()=> onVeredito(true)} className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 px-3 py-2 text-sm">Condenar</button>
+                      <button onClick={()=> onVeredito(false)} className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm">Absolver</button>
+                    </div>
+                    <p className="text-[11px] opacity-70 mt-2">Criminal: “além de dúvida razoável”. Outros: preponderância.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <footer className="mt-6 text-xs opacity-70">Simulação educacional. Não substitui aconselhamento jurídico.</footer>
+          </div>
+        </div>
+      )
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App/>);
   </script>
 </body>
 </html>
