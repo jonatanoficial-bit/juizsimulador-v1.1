@@ -1,313 +1,485 @@
 <!doctype html>
 <html lang="pt-br">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Jogo do Juiz — Vale Produção</title>
-  <!-- Libs via CDN -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/framer-motion/dist/framer-motion.umd.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    html,body,#root{height:100%}
-    body{background:#000;color:#fff}
-    pre{white-space:pre-wrap}
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Jogo do Juiz 2.0 — Vale Produção</title>
+<style>
+  :root{
+    --bg:#0b0b0d; --panel:#141419; --muted:#8b90a0; --text:#f4f6fb;
+    --brand:#42e6a4; --accent:#6ab0ff; --danger:#ff5d7a; --warn:#ffc34d;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto}
+  body{background:var(--bg);color:var(--text)}
+  button,input,select{font:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:20px}
+  .btn{border:0;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer;color:#fff;background:#ffffff22}
+  .btn:hover{background:#ffffff35}
+  .btn.ok{background:var(--brand);color:#032}
+  .btn.danger{background:var(--danger);color:#200}
+  .btn.warn{background:var(--warn);color:#332100}
+  .btn.ghost{background:#ffffff10}
+  .card{background:var(--panel);border:1px solid #ffffff18;border-radius:16px;padding:16px}
+  .grid{display:grid;gap:16px}
+  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .title{font-size:28px;font-weight:800;letter-spacing:-0.02em}
+  .muted{color:var(--muted)}
+  .pill{display:inline-block;background:#ffffff14;border:1px solid #ffffff22;border-radius:999px;padding:4px 10px;font-size:12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .list{display:flex;flex-direction:column;gap:12px;max-height:420px;overflow:auto;padding-right:6px}
+  .progress{height:8px;background:#ffffff14;border-radius:999px;overflow:hidden}
+  .progress>span{display:block;height:100%;background:var(--accent)}
+  .avatar{width:56px;height:56px;border-radius:12px;overflow:hidden;border:2px solid #ffffff44;background:#ffffff18;display:grid;place-items:center}
+  .bg-hero{
+    background:
+      radial-gradient(1000px 500px at 50% -10%,#ffffff22,transparent),
+      linear-gradient(180deg,#0b0b0d 0%,#0b0b0d 20%,#0b0b0d 100%);
+    min-height:100vh;display:grid;place-items:center;text-align:center
+  }
+
+  /* Temas por tribunal (com fallback cor sólida) */
+  .theme-criminal{
+    background:
+      radial-gradient(1000px 500px at 50% 0%, rgba(0,0,0,.45), transparent),
+      url('https://images.unsplash.com/photo-1589994965851-a3d0ee3d5953?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat,
+      #0f0a06;
+    min-height:100vh;padding:20px 0;
+  }
+  .theme-familia{
+    background:
+      radial-gradient(1000px 500px at 50% 0%, rgba(0,0,0,.35), transparent),
+      url('https://images.unsplash.com/photo-1589829545856-d10d557cf95f?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat,
+      #101217;
+    min-height:100vh;padding:20px 0;
+  }
+  .theme-trabalhista{
+    background:
+      radial-gradient(1000px 500px at 50% 0%, rgba(0,0,0,.35), transparent),
+      url('https://images.unsplash.com/photo-1523246192111-864a292e0fcd?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat,
+      #1a1209;
+    min-height:100vh;padding:20px 0;
+  }
+
+  /* Avatar grande */
+  .avatar-lg{width:100%;max-width:240px;border-radius:14px;border:1px solid #ffffff33}
+
+  /* Responsivo */
+  @media (max-width:960px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
-  <div id="root"></div>
 
-  <script type="text/babel">
-const { useState, useEffect, useMemo, useRef } = React;
-const { motion } = window.framerMotion;
+<div id="app"></div>
 
-// ---------- Constantes ----------
+<script>
+(function(){
+// ===== util =====
+const $ = sel => document.querySelector(sel);
+const el = (tag, props={}, kids=[]) => {
+  const n = document.createElement(tag);
+  for (const k in props){
+    if (k === 'class') n.className = props[k];
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2).toLowerCase(), props[k]);
+    else if (k === 'html') n.innerHTML = props[k];
+    else n.setAttribute(k, props[k]);
+  }
+  (Array.isArray(kids)?kids:[kids]).filter(Boolean).forEach(k => n.appendChild(typeof k==='string'?document.createTextNode(k):k));
+  return n;
+};
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+
+// ===== “hash” simples (para senha local) =====
+async function hash(text){
+  if (window.crypto && window.crypto.subtle) {
+    const enc = new TextEncoder().encode(text);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  // fallback
+  let h=0; for(let i=0;i<text.length;i++){h=((h<<5)-h)+text.charCodeAt(i); h|=0;}
+  return String(h);
+}
+
+// ===== dados base =====
 const ESTADOS = {"SP":["São Paulo","Campinas","Santos","Sorocaba"],"RJ":["Rio de Janeiro","Niterói","Petrópolis"],"MG":["Belo Horizonte","Uberlândia","Juiz de Fora"],"BA":["Salvador","Feira de Santana","Vitória da Conquista"]};
 const COURT_TYPES = [
   {id:"criminal",icon:"⚖️",title:"Criminal",desc:"Crimes contra a pessoa e patrimônio. Júri popular em crimes dolosos contra a vida."},
-  {id:"familia",icon:"👨‍👩‍👧",title:"Família",desc:"Divórcios, guarda, pensão, adoção, medidas protetivas e acordos de convivência."},
-  {id:"trabalhista",icon:"💼",title:"Trabalhista",desc:"Vínculo, verbas rescisórias, horas extras, adicionais, dano moral e acordos."}
+  {id:"familia",icon:"👨‍👩‍👧",title:"Família",desc:"Divórcios, guarda, pensão, adoção, medidas protetivas e acordos."},
+  {id:"trabalhista",icon:"💼",title:"Trabalhista",desc:"Vínculo, verbas rescisórias, horas extras, adicionais e danos morais."},
 ];
-const SOUND_URLS={
-  gavel:"https://cdn.pixabay.com/download/audio/2022/03/15/audio_b8e7f6b3a0.mp3?filename=judge-gavel-182004.mp3",
-  ambience:"https://cdn.pixabay.com/download/audio/2022/10/25/audio_6d02f9f2c3.mp3?filename=large-room-ambience-124106.mp3",
-  murmur:"https://cdn.pixabay.com/download/audio/2021/09/16/audio_7b4b2d7f6c.mp3?filename=crowd-murmur-ambient-75537.mp3"
-};
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
-// ---------- Sons ----------
-function useSound(url,enabled=true,volume=0.7){
-  const ref=useRef(null);
-  useEffect(()=>{const a=new Audio(url);a.volume=volume;ref.current=a;return()=>{a.pause();ref.current=null}},[url]);
-  const play=()=>{if(enabled&&ref.current){ref.current.currentTime=0;ref.current.play();}};
-  const stop=()=>{if(ref.current){ref.current.pause();ref.current.currentTime=0;}};
-  return {play,stop};
-}
-
-// ---------- Efeito digitando ----------
-function useTypewriter(fullText,speed=18,play=true){
-  const [text,setText]=useState("");
-  useEffect(()=>{ if(!play) return setText(fullText);
-    setText(""); let i=0; const id=setInterval(()=>{i++; setText(fullText.slice(0,i)); if(i>=fullText.length) clearInterval(id);}, speed);
-    return ()=>clearInterval(id);
-  },[fullText,speed,play]);
-  return text;
-}
-
-// ---------- GERADOR INTERNO DE CASOS (sem fetch) ----------
+// ===== gerador 100 casos =====
 function seedCases(n=100){
-  const casos=[]; 
-  const tipos=["criminal","familia","trabalhista"];
-  const criminal=[{t:"Homicídio simples em briga de bar",r:"Discussão escalou; réu alega legítima defesa. Testemunhas divergentes.",g:{culpado:true,padrao:"alem_duvida"},p:[["depoimento","Testemunha A: vítima iniciou agressão."],["laudo","Laudo necroscópico: ferida única."],["video","Câmera externa sem áudio do início."]]},
-    {t:"Roubo com simulacro de arma",r:"Vítima diz que viu arma; não foi localizada arma real.",g:{culpado:true,padrao:"alem_duvida"},p:[["depoimento","Vítima reconhece réu por tatuagem."],["apreensao","Bens da vítima com o réu."],["foto","Simulacro encontrado próximo."]]},
-    {t:"Tentativa de furto qualificado",r:"Réu surpreendido arrombando comércio; alega necessidade extrema.",g:{culpado:true,padrao:"alem_duvida"},p:[["foto","Porta com sinais de arrombamento."],["depoimento","Policial: ferramentas na mochila."],["laudo","Danos estimados em R$ 2.500,00."]]},
-    {t:"Lesão corporal (doméstica)",r:"Vítima com escoriações; réu alega acidente.",g:{culpado:true,padrao:"alem_duvida"},p:[["laudo","Hematomas recentes."],["depoimento","Vizinhos ouviram gritos."],["medida","Havia protetiva vigente."]]}];
-  const familia=[{t:"Guarda compartilhada com residência fixa",r:"Pais concordam com guarda compartilhada, divergem sobre residência.",g:{culpado:false,padrao:"preponderancia"},p:[["relatorio","Assistente social: ambos aptos; rotina escolar com a mãe."],["depoimento","Professora: criança adaptada."]]},
-    {t:"Revisão de pensão alimentícia",r:"Genitor alega queda de renda; outra parte aponta renda informal.",g:{culpado:false,padrao:"preponderancia"},p:[["doc","Contratos esporádicos."],["extrato","Entradas via PIX relevantes."]]},
-    {t:"Regulamentação de visitas",r:"Conflito sobre pernoites e feriados; histórico de atrasos.",g:{culpado:false,padrao:"preponderancia"},p:[["relatorio","Psicólogo: vínculo afetivo preservado."],["mensagens","Conversas confirmam atrasos."]]}];
-  const trab=[{t:"Horas extras e intervalo",r:"Empregado alega 2h extras diárias; empresa fala em banco de horas.",g:{culpado:false,padrao:"preponderancia"},p:[["ponto","Espelhos com inconsistências."],["testemunha","Colega confirma extrapolações."]]},
-    {t:"Vínculo de emprego x PJ",r:"Atuou como PJ 2 anos; alega subordinação e habitualidade.",g:{culpado:false,padrao:"preponderancia"},p:[["contrato","Exclusividade."],["emails","Ordens diretas e metas."]]},
-    {t:"Dano moral por assédio",r:"Autor relata humilhações; empresa nega e cita compliance.",g:{culpado:false,padrao:"preponderancia"},p:[["mensagens","Broncas em grupo."],["testemunha","Ex-colega confirma ofensas."]]}];
-  for(let i=0;i<n;i++){
-    const tipo=tipos[i%tipos.length];
-    const base=(tipo==="criminal"?criminal:tipo==="familia"?familia:trab)[i%3];
-    casos.push({id:tipo[0].toUpperCase()+String(i+1).padStart(3,'0'),
-      tipo,titulo:base.t,resumo:base.r,gabarito:base.g,status:"na_fila",
-      provas:base.p.map((pp,idx)=>({id:"E"+(idx+1),tipo:pp[0],conteudo:pp[1]}))});
+  const out=[], tipos=["criminal","familia","trabalhista"];
+  const C=[{t:"Homicídio simples em briga de bar",r:"Discussão escalou; réu alega legítima defesa.",g:{culpado:true,padrao:"alem_duvida"}},
+           {t:"Roubo com simulacro de arma",r:"Vítima diz que viu arma; simulacro próximo.",g:{culpado:true,padrao:"alem_duvida"}},
+           {t:"Tentativa de furto",r:"Réu surpreendido arrombando comércio.",g:{culpado:true,padrao:"alem_duvida"}},
+           {t:"Lesão corporal (doméstica)",r:"Vítima com escoriações; réu alega acidente.",g:{culpado:true,padrao:"alem_duvida"}}];
+  const F=[{t:"Guarda compartilhada",r:"Pais divergem sobre residência da criança.",g:{culpado:false,padrao:"preponderancia"}},
+           {t:"Revisão de pensão",r:"Genitor alega queda de renda.",g:{culpado:false,padrao:"preponderancia"}},
+           {t:"Regulamentação de visitas",r:"Conflito sobre pernoites e feriados.",g:{culpado:false,padrao:"preponderancia"}}];
+  const T=[{t:"Horas extras",r:"Alega 2h extras/dia; empresa fala em banco de horas.",g:{culpado:false,padrao:"preponderancia"}},
+           {t:"Vínculo x PJ",r:"Atuou como PJ; alega subordinação.",g:{culpado:false,padrao:"preponderancia"}},
+           {t:"Assédio moral",r:"Relata humilhações; empresa nega.",g:{culpado:false,padrao:"preponderancia"}}];
+  for (let i=0;i<n;i++){
+    const tipo=tipos[i%3]; const base=(tipo==="criminal"?C:tipo==="familia"?F:T)[i%3];
+    out.push({id:tipo[0]+String(i+1).padStart(3,"0"),tipo,titulo:base.t,resumo:base.r,gabarito:base.g,status:"na_fila",
+      provas:[{id:"E1",tipo:"depoimento",conteudo:"Prova 1"},{id:"E2",tipo:"documento",conteudo:"Prova 2"}]});
   }
-  return casos;
+  return out;
 }
 
-// ---------- IA local (gratuita) ----------
-async function iaFala(agente,caso,promptExtra=""){
-  const pick=(arr,k)=>arr.slice().sort(()=>0.5-Math.random()).slice(0,k);
-  const provas=pick(caso.provas,Math.min(3,caso.provas.length));
+// ===== IA simulada (local) =====
+function iaFala(agente,caso,pergunta=""){
   const header=agente==="acusacao"?"ACUSAÇÃO":agente==="defesa"?"DEFESA":"TESTEMUNHA";
-  const linhas=provas.map(p=>`• [${p.id}/${p.tipo}] ${p.conteudo}`);
-  const tese=agente==="acusacao"?(caso.tipo==="criminal"?"A robustez do conjunto probatório supera o limiar do 'além de dúvida razoável'.":"A preponderância das evidências favorece a tese inicial."):(
-    caso.tipo==="criminal"?"As inconsistências geram dúvida razoável, impondo absolvição.":"A parte adversa não se desincumbiu do ônus probatório.");
-  const texto=`${header}:\n${linhas.join("\n")}\n\nTese: ${tese}`;
-  await new Promise(r=>setTimeout(r,280+Math.random()*400));
-  return {texto,citacoes:provas.map(p=>p.id)};
+  const base=agente==="acusacao"?
+    "A robustez das provas aponta para condenação além de dúvida razoável.":
+    "Há dúvidas razoáveis que impõem absolvição ou solução menos gravosa.";
+  return `${header}:\n${pergunta?("Pergunta do juiz: "+pergunta+"\nResposta: "+base):base}`;
 }
 
-// ---------- App ----------
-function App(){
-  const [screen,setScreen]=useState("splash");
-  const [court,setCourt]=useState(null);
-  const [avatarUrl,setAvatarUrl]=useState(""); const [nome,setNome]=useState(""); const [idade,setIdade]=useState("");
-  const [estado,setEstado]=useState("SP"); const [cidade,setCidade]=useState(ESTADOS["SP"][0]);
-  const [cases]=useState(()=>seedCases(100));          // <- usa gerador interno
-  const [fila,setFila]=useState([]); const [atual,setAtual]=useState(null); const [julgando,setJulgando]=useState(null);
-  const [stats,setStats]=useState({julgados:0,acertos:0,prestigio:0});
+// ===== Save/Load =====
+const SAVE_PREFIX = "JUJ2_SAVE_";
+async function computeKey(user){ return SAVE_PREFIX + user; }
 
-  useEffect(()=>{ if(!court) return; setFila(cases.filter(c=>c.tipo===court && c.status==="na_fila")); },[court,cases]);
-
-  const curriculo=useMemo(()=>{ if(!nome||!idade||!court) return null;
-    const tit=COURT_TYPES.find(t=>t.id===court)?.title;
-    return {resumo:`${nome}, ${idade} anos. Juiz(a) de ${tit} em ${cidade}/${estado}. Formação em Direito, foco em decisões fundamentadas e gestão de pauta eficiente.`,
-      destaques:["Ritos processuais e padrões probatórios","Conciliação quando possível","Ética, imparcialidade e transparência"]};
-  },[nome,idade,court,cidade,estado]);
-
-  function registrarVeredito(caso,culpado){
-    const acertou=(caso.tipo==='criminal')?(culpado===!!caso.gabarito.culpado):true;
-    setStats(s=>{const julgados=s.julgados+1; const acertos=s.acertos+(acertou?1:0); const IAJ=julgados?acertos/julgados:0; const prestigio=Math.min(100,Math.round(IAJ*70+Math.min(30,julgados/2))); return {julgados,acertos,prestigio};});
-  }
-
-  if(screen==="splash"){
-    return (<div className="min-h-screen grid place-items-center bg-gradient-to-br from-black via-zinc-900 to-black">
-      <div className="text-center">
-        <div className="text-sm tracking-widest uppercase opacity-80">Apresentado por</div>
-        <div className="text-3xl font-bold mt-1">Vale Produção</div>
-        <div className="mt-6 text-5xl font-extrabold tracking-tight">Jogo do Juiz</div>
-        <div className="mt-10"><button onClick={()=>setScreen('home')} className="rounded-2xl bg-white/10 px-6 py-3 ring-1 ring-white/20">Entrar</button></div>
-      </div>
-    </div>);
-  }
-
-  if(screen==="home"){
-    return (<div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-zinc-100">
-      <div className="max-w-6xl mx-auto p-6">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Jogo do Juiz</h1>
-            <span className="px-2 py-1 rounded-lg text-xs bg-white/10">Protótipo gratuito • IA local</span>
-          </div>
-        </header>
-        <section className="mt-10">
-          <h2 className="text-xl font-semibold mb-4">Escolha seu Tribunal</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            {COURT_TYPES.map(t=>(
-              <button key={t.id} onClick={()=>{setCourt(t.id); setScreen('avatar');}} className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-5 text-left shadow-xl">
-                <div className="text-4xl mb-3">{t.icon}</div>
-                <div className="text-lg font-semibold">{t.title}</div>
-                <p className="text-sm opacity-80 mt-1">{t.desc}</p>
-              </button>
-            ))}
-          </div>
-        </section>
-      </div>
-    </div>);
-  }
-
-  if(screen==="avatar"){
-    return (<div className="relative overflow-hidden min-h-screen bg-[url('https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div>
-      <div className="relative min-h-screen">
-        <div className="max-w-4xl mx-auto p-6">
-          <h2 className="text-3xl font-bold">Seu Avatar</h2>
-          <div className="mt-6 grid md:grid-cols-2 gap-6">
-            <div className="rounded-xl bg-black/50 p-4">
-              <label className="text-sm opacity-80">Foto (upload)</label>
-              <input type="file" accept="image/*" className="mt-2 block w-full text-sm" onChange={(e)=>{const f=e.target.files?.[0]; if(f){ const url=URL.createObjectURL(f); setAvatarUrl(url);} }}/>
-              <div className="mt-4 aspect-[4/5] rounded-xl overflow-hidden bg-white/10 flex items-center justify-center">
-                {avatarUrl?(<img src={avatarUrl} className="w-full h-full object-cover"/>):(<span className="opacity-60 text-sm">Pré-visualização</span>)}
-              </div>
-            </div>
-            <div className="rounded-xl bg-black/50 p-4 space-y-4">
-              <div><label className="text-sm opacity-80">Nome</label><input value={nome} onChange={(e)=>setNome(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none" placeholder="Ex.: Dra. Maria Alves"/></div>
-              <div><label className="text-sm opacity-80">Idade</label><input value={idade} onChange={(e)=>setIdade(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none" placeholder="Ex.: 38"/></div>
-              <div><label className="text-sm opacity-80">Estado</label><select value={estado} onChange={(e)=>{setEstado(e.target.value); setCidade(ESTADOS[e.target.value][0]);}} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none">{Object.keys(ESTADOS).map(uf=>(<option key={uf}>{uf}</option>))}</select></div>
-              <div><label className="text-sm opacity-80">Cidade</label><select value={cidade} onChange={(e)=>setCidade(e.target.value)} className="mt-1 w-full rounded-xl bg-white/10 p-2 outline-none">{ESTADOS[estado].map(c=>(<option key={c}>{c}</option>))}</select></div>
-              <button onClick={()=> setScreen('office')} disabled={!nome||!idade} className="w-full mt-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 p-3 font-semibold">Continuar → Escritório</button>
-            </div>
-          </div>
-
-          {curriculo&&(<div className="mt-8 rounded-2xl bg-black/60 p-6"><h3 className="text-xl font-semibold">Currículo Gerado</h3><p className="opacity-90 mt-2">{curriculo.resumo}</p><ul className="mt-2 text-sm list-disc pl-5 opacity-90">{curriculo.destaques.map((d,i)=>(<li key={i}>{d}</li>))}</ul></div>)}
-        </div>
-      </div>
-    </div>);
-  }
-
-  if(screen==="office"){
-    const IAJ=stats.julgados?(stats.acertos/stats.julgados):0;
-    return (<div className="relative overflow-hidden min-h-screen bg-[url('https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div>
-      <div className="relative min-h-screen">
-        <div className="max-w-6xl mx-auto p-6">
-          <header className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-white/40">{avatarUrl?<img src={avatarUrl} className="w-full h-full object-cover"/>:<div className="w-full h-full bg-white/20"/>}</div>
-              <div><div className="font-semibold">{nome||"Juiz(a)"}</div><div className="text-xs opacity-80">{cidade}/{estado} • {COURT_TYPES.find(t=>t.id===court)?.title}</div></div>
-            </div>
-            <div className="text-sm opacity-80">IAJ: {(IAJ*100).toFixed(0)}%</div>
-          </header>
-
-          <section className="mt-6 grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 rounded-2xl bg-black/50 p-5">
-              <h3 className="text-lg font-semibold">Fila de Processos</h3>
-              <div className="mt-3 space-y-3 max-h-[420px] overflow-auto pr-1">
-                {fila.length===0&&(<div className="opacity-70">Sem processos na fila para este tribunal.</div>)}
-                {fila.map(proc=>(
-                  <div key={proc.id} className="rounded-xl bg-white/5 p-4 flex items-start justify-between gap-4">
-                    <div><div className="font-semibold">{proc.titulo}</div><div className="text-xs opacity-80">{proc.resumo}</div></div>
-                    <div className="flex gap-2">
-                      <button className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm" onClick={()=> setAtual(proc)}>Ler processo</button>
-                      <button className="rounded-xl bg-amber-500/90 hover:bg-amber-600 px-3 py-2 text-sm" onClick={()=> setFila(f=>[...f.filter(x=>x.id!==proc.id),proc])}>Arquivar (fim da fila)</button>
-                      <button className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm" onClick={()=>{ setJulgando(proc); setScreen('trial'); }}>Iniciar julgamento</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-black/50 p-5">
-              <h3 className="text-lg font-semibold">Métricas</h3>
-              <div className="mt-3 space-y-3">
-                <div><div className="text-sm opacity-80">Casos julgados</div><div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{width:`${clamp(stats.julgados*2,0,100)}%`}}></div></div><div className="text-xs mt-1">{stats.julgados}</div></div>
-                <div><div className="text-sm opacity-80">IAJ (acertos/gabarito)</div><div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-sky-500" style={{width:`${clamp((stats.acertos/(stats.julgados||1))*100,0,100)}%`}}></div></div><div className="text-xs mt-1">{stats.acertos} acertos</div></div>
-              </div>
-
-              {atual&&(<div className="mt-6 rounded-xl bg-white/10 p-4"><div className="font-semibold">Processo selecionado</div><div className="text-sm mt-1">{atual.titulo}</div><div className="text-xs opacity-80">{atual.resumo}</div><div className="mt-2 text-xs opacity-80">Provas:</div><ul className="text-xs list-disc pl-5">{atual.provas.map(p=>(<li key={p.id}>[{p.id}] {p.tipo}: {p.conteudo}</li>))}</ul></div>)}
-            </div>
-          </section>
-        </div>
-      </div>
-    </div>);
-  }
-
-  if(screen==="trial"){
-    return (<TrialView caso={julgando} onVoltar={()=> setScreen('office')} onVeredito={(culpado)=>{ registrarVeredito(julgando,culpado); setFila(f=> f.filter(x=>x.id!==julgando.id)); setScreen('office'); }}/>);
-  }
-
-  return null;
+async function saveGame(){
+  if(!S.user) return;
+  const key = await computeKey(S.user);
+  const payload = JSON.stringify({
+    user: S.user,
+    pass: S.passHash||null,
+    data: {
+      scr:S.scr, court:S.court, nome:S.nome, idade:S.idade,
+      estado:S.estado, cidade:S.cidade, avatar:S.avatar, // base64
+      casos:S.casos, fila:S.fila, atual:S.atual, julgando:S.julgando,
+      stats:S.stats
+    },
+    when: Date.now()
+  });
+  localStorage.setItem(key, payload);
 }
 
-// ---------- Tela de julgamento ----------
-function TrialView({caso,onVoltar,onVeredito}){
-  const [fase,setFase]=useState("inicio");
-  const [textoAcus,setTextoAcus]=useState(""); const [textoDef,setTextoDef]=useState("");
-  const [showAcus,setShowAcus]=useState(false); const [showDef,setShowDef]=useState(false);
-  const [perg,setPerg]=useState(""); const [resp,setResp]=useState("");
-  const typedAcus=useTypewriter(textoAcus,12,true); const typedDef=useTypewriter(textoDef,12,true); const typedResp=useTypewriter(resp,14,true);
-
-  async function ouvirAcusacao(){setFase("acusacao");const r=await iaFala("acusacao",caso);setTextoAcus(r.texto);setShowAcus(true);}
-  async function ouvirDefesa(){setFase("defesa");const r=await iaFala("defesa",caso);setTextoDef(r.texto);setShowDef(true);}
-  async function perguntar(){if(!perg.trim())return;setFase("perguntas");const alvo=Math.random()<0.5?"acusacao":"defesa";const r=await iaFala(alvo,caso,`Responda objetivamente à pergunta do juiz: ${perg}.`);setResp(`${alvo.toUpperCase()}: ${r.texto}`);}
-
-  return (<div className="relative overflow-hidden min-h-screen bg-[url('https://images.unsplash.com/photo-1593113598332-cc1a3f2b7f3e?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center text-white">
-    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80"></div>
-    <div className="relative min-h-screen">
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="flex items-center justify-between">
-          <div><h2 className="text-2xl font-bold">Sala de Julgamento</h2><div className="text-sm opacity-80">{caso?.titulo}</div></div>
-          <button onClick={onVoltar} className="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm">← Voltar</button>
-        </div>
-
-        <div className="mt-6 grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 rounded-2xl bg-black/50 p-5 space-y-4">
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={()=>setFase('inicio')} className={`px-3 py-2 rounded-xl text-sm ${fase==='inicio'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Iniciar julgamento</button>
-              <button onClick={ouvirAcusacao} className={`px-3 py-2 rounded-xl text-sm ${fase==='acusacao'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Palavra à Acusação</button>
-              <button onClick={ouvirDefesa} className={`px-3 py-2 rounded-xl text-sm ${fase==='defesa'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Ouvir Defesa</button>
-              <button onClick={()=>setFase('testemunhas')} className={`px-3 py-2 rounded-xl text-sm ${fase==='testemunhas'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Ouvir Testemunhas</button>
-              <button onClick={()=>setFase('decidir')} className={`px-3 py-2 rounded-xl text-sm ${fase==='decidir'?'bg-emerald-600':'bg-white/10 hover:bg-white/20'}`}>Dar Veredito</button>
-            </div>
-
-            {showAcus&&(<div className="rounded-xl bg-white/5 p-4"><div className="text-xs opacity-80 mb-1">ACUSAÇÃO</div><pre className="text-sm leading-relaxed">{typedAcus}</pre></div>)}
-            {showDef&&(<div className="rounded-xl bg-white/5 p-4"><div className="text-xs opacity-80 mb-1">DEFESA</div><pre className="text-sm leading-relaxed">{typedDef}</pre></div>)}
-
-            <div className="rounded-xl bg-white/5 p-4">
-              <div className="text-xs opacity-80 mb-1">Perguntas do Juiz</div>
-              <div className="flex gap-2">
-                <input value={perg} onChange={(e)=>setPerg(e.target.value)} className="flex-1 rounded-xl bg-white/10 p-2 outline-none text-sm" placeholder="Digite sua pergunta…"/>
-                <button onClick={perguntar} className="rounded-xl bg-sky-600 hover:bg-sky-700 px-3 py-2 text-sm">Perguntar</button>
-              </div>
-              {typedResp && (<div className="mt-3 text-sm opacity-90 whitespace-pre-wrap">{typedResp}</div>)}
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-black/50 p-5">
-            <div className="text-lg font-semibold">Dossiê (Provas)</div>
-            <ul className="mt-2 text-sm space-y-2 max-h-[360px] overflow-auto pr-1">
-              {caso?.provas.map(p=>(
-                <li key={p.id} className="rounded-lg bg-white/5 p-3">
-                  <div className="text-xs opacity-80">[{p.id}] {p.tipo}</div>
-                  <div>{p.conteudo}</div>
-                </li>
-              ))}
-            </ul>
-
-            {fase==='decidir'&&(<div className="mt-5">
-              <div className="text-sm opacity-80">Veredito</div>
-              <div className="flex gap-2 mt-2">
-                <button onClick={()=>{ onVeredito(true); }} className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 px-3 py-2 text-sm">Condenar</button>
-                <button onClick={()=>{ onVeredito(false); }} className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm">Absolver</button>
-              </div>
-              <p className="text-[11px] opacity-70 mt-2">Criminal: padrão “além de dúvida razoável”. Demais: preponderância da prova.</p>
-            </div>)}
-          </div>
-        </div>
-
-        <footer className="mt-6 text-xs opacity-70">Simulação educacional. Não substitui aconselhamento jurídico.</footer>
-      </div>
-    </div>);
+async function loadGame(user){
+  const key = await computeKey(user);
+  const raw = localStorage.getItem(key);
+  if(!raw) return null;
+  try { return JSON.parse(raw); } catch(e){ return null; }
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App/>);
-  </script>
+// Export/Import (backup)
+function exportGame(){
+  if(!S.user){ alert("Você precisa estar logado."); return; }
+  const blob = new Blob([localStorage.getItem(SAVE_PREFIX+S.user)||"{}"], {type:"application/json"});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `juiz_save_${S.user}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function importGame(file){
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const obj = JSON.parse(r.result);
+      if(!obj || !obj.data){ alert("Arquivo inválido."); return; }
+      // escreve direto
+      localStorage.setItem(SAVE_PREFIX+(obj.user||"player"), JSON.stringify(obj));
+      alert("Save importado! Faça login com o usuário do arquivo.");
+    }catch(e){ alert("Falha ao importar."); }
+  };
+  r.readAsText(file);
+}
+
+// ===== estado =====
+const S={
+  // sessão
+  scr:"login", // login|splash|home|avatar|office|trial
+  user:"", passHash:null,
+
+  // jogador
+  court:null,
+  avatar:null, // base64
+  nome:"",
+  idade:"",
+  estado:"SP",
+  cidade:ESTADOS["SP"][0],
+
+  // jogo
+  casos:seedCases(),
+  fila:[],
+  atual:null,
+  julgando:null,
+  stats:{j:0,a:0}
+};
+
+// ===== render =====
+function render(){
+  const root=$('#app'); root.innerHTML="";
+  if(S.scr==="login"){ root.appendChild(viewLogin()); return; }
+  if(S.scr==="splash"){ root.appendChild(viewSplash()); return; }
+  if(S.scr==="home"){ root.appendChild(viewHome()); return; }
+  if(S.scr==="avatar"){ root.appendChild(viewAvatar()); return; }
+  if(S.scr==="office"){ root.appendChild(viewOffice()); return; }
+  if(S.scr==="trial"){ root.appendChild(viewTrial()); return; }
+}
+
+// ===== Views =====
+function viewLogin(){
+  const userInput = el('input',{placeholder:'Usuário',style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'});
+  const passInput = el('input',{type:'password',placeholder:'Senha (opcional)',style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'});
+
+  const knownUsers = Object.keys(localStorage).filter(k=>k.startsWith(SAVE_PREFIX)).map(k=>k.replace(SAVE_PREFIX,''));
+
+  const login = async ()=>{
+    const u = userInput.value.trim();
+    if(!u){ alert("Informe um usuário."); return; }
+    const exists = await loadGame(u);
+    if(!exists){
+      // criar novo perfil
+      S.user = u;
+      S.passHash = passInput.value ? await hash(passInput.value) : null;
+      S.court=null; S.avatar=null; S.nome=""; S.idade=""; S.estado="SP"; S.cidade=ESTADOS["SP"][0];
+      S.casos = seedCases(); S.fila=[]; S.atual=null; S.julgando=null; S.stats={j:0,a:0};
+      await saveGame();
+      S.scr="splash"; render();
+    }else{
+      // checar senha se houver
+      const needs = !!exists.pass;
+      if(needs){
+        const h = await hash(passInput.value||"");
+        if(h!==exists.pass){ alert("Senha incorreta."); return; }
+      }
+      // restaurar
+      S.user = exists.user;
+      S.passHash = exists.pass||null;
+      Object.assign(S, exists.data);
+      S.scr="splash"; render();
+    }
+  };
+
+  const delUser = async ()=>{
+    const u = prompt("Digite o usuário que deseja remover:");
+    if(!u) return;
+    const key = await computeKey(u);
+    if(localStorage.getItem(key)){
+      if(confirm(`Remover o perfil "${u}" e todo o progresso?`)){
+        localStorage.removeItem(key); alert("Removido.");
+        render();
+      }
+    }else{
+      alert("Perfil não encontrado.");
+    }
+  };
+
+  const importInput = el('input',{type:'file',accept:'application/json',onchange:(e)=>{ const f=e.target.files?.[0]; if(f) importGame(f); }});
+
+  return el('div',{class:'bg-hero'},[
+    el('div',{},[
+      el('div',{class:'pill'},'Vale Produção apresenta'),
+      el('div',{class:'title',style:'margin:10px 0 20px'},'Jogo do Juiz 2.0'),
+      el('div',{class:'wrap card',style:'max-width:520px;margin:auto'},[
+        el('div',{class:'muted'},'Entre com seu usuário (criaremos se não existir):'),
+        el('div',{style:'height:8px'}), userInput,
+        el('div',{style:'height:8px'}),
+        passInput,
+        el('div',{style:'height:12px'}),
+        el('div',{class:'row'},[
+          el('button',{class:'btn ok',onclick:login},'Entrar / Criar perfil'),
+          el('button',{class:'btn ghost',onclick:delUser},'Remover perfil'),
+          el('label',{class:'btn ghost'},['Importar Save', importInput])
+        ]),
+        knownUsers.length ? el('div',{style:'margin-top:12px'},[
+          el('div',{class:'muted',style:'margin-bottom:6px'},'Perfis encontrados:'),
+          el('div',{class:'row'}, knownUsers.map(u=> el('span',{class:'pill'},u)))
+        ]) : null
+      ])
+    ])
+  ]);
+}
+
+function viewSplash(){
+  return el('div',{class:'bg-hero'},[
+    el('div',{},[
+      el('div',{class:'pill'},`Perfil: ${S.user}`),
+      el('div',{class:'title',style:'margin:10px 0'},'Jogo do Juiz'),
+      el('div',{class:'row',style:'justify-content:center'},[
+        el('button',{class:'btn ok',onclick:()=>{S.scr="home";saveGame().then(render)}},'Começar'),
+        el('button',{class:'btn',onclick:()=>{if(confirm('Sair deste perfil?')){S.scr="login"; S.user=""; render();}}},'Trocar perfil'),
+        el('button',{class:'btn ghost',onclick:exportGame},'Exportar Save')
+      ])
+    ])
+  ]);
+}
+
+function viewHome(){
+  const grid=el('div',{class:'wrap grid grid-3'},COURT_TYPES.map(t=>el('div',{class:'card'},[
+    el('div',{style:'font-size:28px'},t.icon),
+    el('div',{style:'font-weight:700'},t.title),
+    el('div',{class:'muted'},t.desc),
+    el('div',{style:'height:10px'}),
+    el('button',{class:'btn ok',onclick:()=>{S.court=t.id; S.fila=S.casos.filter(c=>c.tipo===t.id); S.scr="avatar"; saveGame().then(render);}},'Escolher')
+  ])));
+  const topbar = el('div',{class:'wrap row',style:'justify-content:space-between;margin-top:10px'},[
+    el('span',{class:'pill'},`Usuário: ${S.user}`),
+    el('div',{class:'row'},[
+      el('button',{class:'btn ghost',onclick:exportGame},'Exportar'),
+      el('button',{class:'btn ghost',onclick:()=>{S.scr="login"; render();}},'Sair')
+    ])
+  ]);
+  return el('div',{},[topbar, grid]);
+}
+
+function viewAvatar(){
+  const foto=el('div',{class:'card'},[
+    el('div',{class:'muted'},'Foto (upload)'),
+    el('input',{type:'file',accept:'image/*',onchange:e=>{
+      const f=e.target.files&&e.target.files[0];
+      if(!f) return;
+      const r = new FileReader();
+      r.onload = ()=>{ S.avatar = r.result; saveGame().then(render); };
+      r.readAsDataURL(f); // salva base64
+    }}),
+    el('div',{style:'margin-top:10px'},
+      S.avatar?el('img',{src:S.avatar,class:'avatar-lg'}):el('div',{class:'muted'},'Pré-visualização'))
+  ]);
+
+  const form=el('div',{class:'card'},[
+    el('div',{},[el('div',{class:'muted'},'Nome'),el('input',{value:S.nome,oninput:e=>{S.nome=e.target.value;saveGame();},style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'})]),
+    el('div',{style:'height:8px'}),
+    el('div',},[el('div',{class:'muted'},'Idade'),el('input',{value:S.idade,oninput:e=>{S.idade=e.target.value;saveGame();},style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'})]),
+    el('div',{style:'height:8px'}),
+    el('div',{},[el('div',{class:'muted'},'Estado'),
+      el('select',{onchange:e=>{S.estado=e.target.value; S.cidade=ESTADOS[S.estado][0]; saveGame(); render();}, style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'},
+        Object.keys(ESTADOS).map(uf=>el('option',{value:uf,selected:uf===S.estado},uf)))]),
+    el('div',{style:'height:8px'}),
+    el('div',{},[el('div',{class:'muted'},'Cidade'),
+      el('select',{onchange:e=>{S.cidade=e.target.value;saveGame();},style:'width:100%;padding:10px;border-radius:10px;border:1px solid #ffffff28;background:#0e0f12;color:#fff'},
+        ESTADOS[S.estado].map(c=>el('option',{value:c,selected:c===S.cidade},c)))]),
+    el('div',{style:'height:12px'}),
+    el('button',{class:'btn ok',onclick:()=>{S.scr="office"; saveGame().then(render);}},'Continuar → Escritório')
+  ]);
+
+  // currículo automático
+  const curr = (S.nome&&S.idade&&S.court) ? el('div',{class:'card'},[
+    el('div',{style:'font-weight:700'},'Currículo Gerado'),
+    el('div',{},`${S.nome}, ${S.idade} anos. Juiz(a) de ${COURT_TYPES.find(t=>t.id===S.court).title} em ${S.cidade}/${S.estado}.`),
+    el('ul',{},[
+      el('li',{},'Ritos processuais e padrões probatórios'),
+      el('li',{},'Conciliação quando possível'),
+      el('li',{},'Ética, imparcialidade e transparência'),
+    ])
+  ]) : null;
+
+  return el('div',{class: themeClassFor(S.court),}, el('div',{class:'wrap grid grid-2'},[foto,form,curr]));
+}
+
+function viewOffice(){
+  const IAJ=S.stats.j?S.stats.a/S.stats.j:0;
+  const header=el('div',{class:'row'},[
+    el('div',{class:'avatar'}, S.avatar?el('img',{src:S.avatar,style:'width:100%;height:100%;object-fit:cover'}):''),
+    el('div',{},[el('div',{style:'font-weight:700'},S.nome||"Juiz(a)"),
+      el('div',{class:'muted'},`${S.cidade}/${S.estado} • ${COURT_TYPES.find(t=>t.id===S.court)?.title||''}`)]),
+    el('div',{style:'flex:1'}),el('div',{class:'pill'},`IAJ ${(IAJ*100|0)}%`)
+  ]);
+
+  const fila=el('div',{class:'card'},[
+    el('div',{style:'font-weight:700'},'Fila de Processos'),
+    el('div',{class:'list'},
+      S.fila.length?S.fila.map(p=>el('div',{class:'card'},[
+        el('div',{style:'font-weight:700'},p.titulo),
+        el('div',{class:'muted'},p.resumo),
+        el('div',{class:'row'},[
+          el('button',{class:'btn',onclick:()=>{S.atual=p; saveGame().then(render);}},'Ler'),
+          el('button',{class:'btn ok',onclick:()=>{S.julgando=p; S.scr="trial"; saveGame().then(render);}},'Julgar')
+        ])
+      ])):[el('div',{class:'muted'},'Sem processos.')])
+  ]);
+
+  const met=el('div',{class:'card'},[
+    el('div',{style:'font-weight:700'},'Métricas'),
+    el('div',{class:'muted'},'Casos julgados'),
+    el('div',{class:'progress'},[el('span',{style:`width:${clamp(S.stats.j*2,0,100)}%`})]),
+    el('div',{class:'muted'},`IAJ ${(IAJ*100|0)}%`),
+    el('div',{style:'height:10px'}),
+    el('div',{class:'row'},[
+      el('button',{class:'btn ghost',onclick:exportGame},'Exportar Save'),
+      el('label',{class:'btn ghost'},['Importar Save', el('input',{type:'file',accept:'application/json',onchange:(e)=>{const f=e.target.files?.[0]; if(f) importGame(f);}})])
+    ])
+  ]);
+
+  const topbar = el('div',{class:'wrap row',style:'justify-content:space-between;margin-bottom:8px'},[
+    el('span',{class:'pill'},`Usuário: ${S.user}`),
+    el('button',{class:'btn',onclick:()=>{ if(confirm('Sair do jogo?')){ S.scr="home"; saveGame().then(render);} }},'Menu')
+  ]);
+
+  return el('div',{class: themeClassFor(S.court)},[
+    topbar,
+    el('div',{class:'wrap grid grid-2'},[el('div',{},[header,fila]),met])
+  ]);
+}
+
+function viewTrial(){
+  const c=S.julgando; if(!c)return el('div',{class:'wrap'},'Erro: nenhum caso.');
+  const area=el('pre',{class:'card',style:'min-height:220px'},'Clique em "Acusação" ou "Defesa".');
+
+  function ouvir(ag){ area.textContent=iaFala(ag,c); }
+  function perguntar(){
+    const q = prompt("Pergunta do juiz:");
+    if(q && q.trim()) area.textContent = iaFala(Math.random()<.5?'acusacao':'defesa', c, q.trim());
+  }
+  function veredito(culp){
+    const ac=(c.tipo==='criminal')?(culp===!!c.gabarito.culpado):true;
+    S.stats.j++; if(ac)S.stats.a++;
+    S.fila = S.fila.filter(x=>x.id!==c.id);
+    S.julgando=null; S.scr="office";
+    saveGame().then(render);
+  }
+
+  const dossie = el('div',{class:'card'},[
+    el('div',{style:'font-weight:700'},'Provas'),
+    el('ul',{},c.provas.map(p=>el('li',{},`[${p.id}] ${p.tipo}: ${p.conteudo}`)))
+  ]);
+
+  const controles = el('div',{class:'row',style:'margin:10px 0'},[
+    el('button',{class:'btn',onclick:()=>ouvir('acusacao')},'Acusação'),
+    el('button',{class:'btn',onclick:()=>ouvir('defesa')},'Defesa'),
+    el('button',{class:'btn',onclick:perguntar},'Perguntar'),
+    el('button',{class:'btn ok',onclick:()=>veredito(true)},'Condenar'),
+    el('button',{class:'btn',onclick:()=>veredito(false)},'Absolver'),
+    el('button',{class:'btn ghost',onclick:()=>{S.scr="office"; saveGame().then(render);}},'Voltar')
+  ]);
+
+  const title = el('div',{class:'wrap row',style:'justify-content:space-between;margin-bottom:8px'},[
+    el('span',{class:'pill'},`Julgando: ${c.titulo}`),
+    el('span',{class:'pill'}, COURT_TYPES.find(t=>t.id===S.court)?.title || '')
+  ]);
+
+  return el('div',{class: themeClassFor(S.court)},[
+    title,
+    el('div',{class:'wrap grid grid-2'},[
+      el('div',{},[
+        el('div',{class:'title'},'Sala de Julgamento'),
+        controles,
+        area
+      ]),
+      dossie
+    ])
+  ]);
+}
+
+// ===== tema visual por tribunal =====
+function themeClassFor(court){
+  if(court==="familia") return "theme-familia";
+  if(court==="trabalhista") return "theme-trabalhista";
+  return "theme-criminal"; // padrão
+}
+
+// ===== start =====
+render();
+})();
+</script>
 </body>
 </html>
